@@ -25,6 +25,10 @@ struct WindowDesc
 
     // d3d12
 
+    bool vsync = true;
+
+    DXGI_FORMAT backbufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
     int multisampleCount   = 1;
     int multisampleQuality = 0;
 
@@ -69,13 +73,17 @@ public:
 
     int getCurrentImageIndex() const;
 
-    ComPtr<ID3D12Resource> getImage(int index) const noexcept;
+    ID3D12Resource *getImage(int index) const noexcept;
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE getImageDescHandle(int index) const noexcept;
 
     UINT getImageDescSize() const noexcept;
 
-    void present() const noexcept;
+    void present() const;
+
+    int getImageWidth() const noexcept;
+
+    int getImageHeight() const noexcept;
 
     // d3d12 device/queue
 
@@ -84,6 +92,21 @@ public:
     ID3D12CommandQueue *getCommandQueue();
 
     void waitCommandQueueIdle();
+
+    // fast create
+
+    ComPtr<ID3D12Fence> createFence(
+        UINT64            initValue,
+        D3D12_FENCE_FLAGS flags) const;
+
+    ComPtr<ID3D12CommandAllocator> createCommandAllocator(
+        D3D12_COMMAND_LIST_TYPE type) const;
+
+    ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(
+        UINT                    nodeMask,
+        D3D12_COMMAND_LIST_TYPE type,
+        ID3D12CommandAllocator *cmdAlloc,
+        ID3D12PipelineState    *initPipeline);
 
     // event handler manager
 

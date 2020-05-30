@@ -4,6 +4,7 @@
 #include <dxgi1_4.h>
 #include <dxgidebug.h>
 
+#include <agz/d3d12/cmdQueueWaiter.h>
 #include <agz/d3d12/window.h>
 
 AGZ_D3D12_LAB_BEGIN
@@ -27,12 +28,12 @@ namespace impl
         return { winRect.right - winRect.left, winRect.bottom - winRect.top };
     }
 
-    constexpr DXGI_FORMAT SWAP_CHAIN_BUFFER_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
-
 } // namespace  impl
 
 struct WindowImplData
 {
+    bool exiting = false;
+
     // win32 window
 
     DWORD style = 0;
@@ -50,6 +51,10 @@ struct WindowImplData
 
     // d3d12
 
+    bool vsync = true;
+
+    DXGI_FORMAT backbufferFormat = DXGI_FORMAT_UNKNOWN;
+
     ComPtr<ID3D12Device>       device;
     ComPtr<ID3D12CommandQueue> cmdQueue;
 
@@ -60,9 +65,8 @@ struct WindowImplData
     ComPtr<ID3D12DescriptorHeap> RTVDescHeap;
     UINT RTVDescSize = 0;
 
-    ComPtr<ID3D12Fence> queueFence;
-    UINT64 queueFenceValue = 0;
-     
+    std::unique_ptr<CommandQueueWaiter> cmdQueueWaiter;
+    
     // events
 
     std::unique_ptr<Keyboard> keyboard;
@@ -171,6 +175,8 @@ void Window::initWin32Window(const WindowDesc &desc)
 
 void Window::initD3D12(const WindowDesc &desc)
 {
+    impl_->vsync = desc.vsync;
+
     // factory
 
     ComPtr<IDXGIFactory4> dxgiFactory;
@@ -196,11 +202,13 @@ void Window::initD3D12(const WindowDesc &desc)
 
     // swap chain
 
+    impl_->backbufferFormat = desc.backbufferFormat;
+
     DXGI_SWAP_CHAIN_DESC swapChainDesc;
 
     swapChainDesc.BufferDesc.Width                   = impl_->clientWidth;
     swapChainDesc.BufferDesc.Height                  = impl_->clientHeight;
-    swapChainDesc.BufferDesc.Format                  = impl::SWAP_CHAIN_BUFFER_FORMAT;
+    swapChainDesc.BufferDesc.Format                  = desc.backbufferFormat;
     swapChainDesc.BufferDesc.RefreshRate.Numerator   = 0;
     swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
     swapChainDesc.BufferDesc.Scaling                 = DXGI_MODE_SCALING_UNSPECIFIED;
@@ -225,8 +233,10 @@ void Window::initD3D12(const WindowDesc &desc)
 
     impl_->swapChainImageCount = desc.imageCount;
 
-    if(desc.fullscreen)
-        impl_->swapChain->SetFullscreenState(TRUE, nullptr);
+    AGZ_SCOPE_GUARD({
+        if(desc.fullscreen)
+            impl_->swapChain->SetFullscreenState(TRUE, nullptr);
+    });
 
     // render target descriptor heap
 
@@ -263,11 +273,8 @@ void Window::initD3D12(const WindowDesc &desc)
 
     // command queue fence
 
-    AGZ_D3D12_CHECK_HR_MSG(
-        "failed to create command queue fence",
-        impl_->device->CreateFence(
-            impl_->queueFenceValue, D3D12_FENCE_FLAG_NONE,
-            IID_PPV_ARGS(impl_->queueFence.GetAddressOf())));
+    impl_->cmdQueueWaiter = std::make_unique<CommandQueueWaiter>(
+        impl_->device.Get());
 }
 
 void Window::initKeyboardAndMouse()
@@ -288,10 +295,12 @@ Window::~Window()
     if(!impl_)
         return;
 
-    // IMPROVE
+    impl_->exiting = true;
+
+    // IMPROVE: exception thrown in destructor...
     try { waitCommandQueueIdle(); } catch(...) { }
 
-    impl_->queueFence.Reset();
+    impl_->cmdQueueWaiter.reset();
 
     impl_->swapChainBuffers.clear();
     impl_->RTVDescHeap.Reset();
@@ -403,9 +412,9 @@ int Window::getCurrentImageIndex() const
     return static_cast<int>(impl_->swapChain->GetCurrentBackBufferIndex());
 }
 
-ComPtr<ID3D12Resource> Window::getImage(int index) const noexcept
+ID3D12Resource *Window::getImage(int index) const noexcept
 {
-    return impl_->swapChainBuffers[index];
+    return impl_->swapChainBuffers[index].Get();
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Window::getImageDescHandle(int index) const noexcept
@@ -420,9 +429,21 @@ UINT Window::getImageDescSize() const noexcept
     return impl_->RTVDescSize;
 }
 
-void Window::present() const noexcept
+void Window::present() const
 {
-    impl_->swapChain->Present(0, 0);
+    AGZ_D3D12_CHECK_HR_MSG(
+        "failed to present swap chain image",
+        impl_->swapChain->Present(impl_->vsync ? 1 : 0, 0));
+}
+
+int Window::getImageWidth() const noexcept
+{
+    return impl_->clientWidth;
+}
+
+int Window::getImageHeight() const noexcept
+{
+    return impl_->clientHeight;
 }
 
 ID3D12Device *Window::getDevice()
@@ -437,23 +458,44 @@ ID3D12CommandQueue *Window::getCommandQueue()
 
 void Window::waitCommandQueueIdle()
 {
-    ++impl_->queueFenceValue;
+    impl_->cmdQueueWaiter->waitIdle(impl_->cmdQueue.Get());
+}
 
-    impl_->cmdQueue->Signal(impl_->queueFence.Get(), impl_->queueFenceValue);
+ComPtr<ID3D12Fence> Window::createFence(
+    UINT64 initValue, D3D12_FENCE_FLAGS flags) const
+{
+    ComPtr<ID3D12Fence> ret;
+    AGZ_D3D12_CHECK_HR_MSG(
+        "failed to create d3d12 fence",
+        impl_->device->CreateFence(
+            initValue, flags, IID_PPV_ARGS(ret.GetAddressOf())));
+    return ret;
+}
 
-    if(impl_->queueFence->GetCompletedValue() < impl_->queueFenceValue)
-    {
-        HANDLE eventHandle = CreateEventEx(
-            nullptr, false, false, EVENT_ALL_ACCESS);
+ComPtr<ID3D12CommandAllocator> Window::createCommandAllocator(
+    D3D12_COMMAND_LIST_TYPE type) const
+{
+    ComPtr<ID3D12CommandAllocator> ret;
+    AGZ_D3D12_CHECK_HR_MSG(
+        "failed to create d3d12 command allocator",
+        impl_->device->CreateCommandAllocator(
+            type, IID_PPV_ARGS(ret.GetAddressOf())));
+    return ret;
+}
 
-        AGZ_D3D12_CHECK_HR_MSG(
-            "failed to set command queue fence event",
-            impl_->queueFence->SetEventOnCompletion(
-                impl_->queueFenceValue, eventHandle));
-
-        WaitForSingleObject(eventHandle, INFINITE);
-        CloseHandle(eventHandle);
-    }
+ComPtr<ID3D12GraphicsCommandList> Window::createGraphicsCommandList(
+    UINT                    nodeMask,
+    D3D12_COMMAND_LIST_TYPE type,
+    ID3D12CommandAllocator *cmdAlloc,
+    ID3D12PipelineState    *initPipeline)
+{
+    ComPtr<ID3D12GraphicsCommandList> ret;
+    AGZ_D3D12_CHECK_HR_MSG(
+        "failed to create d3d12 command list",
+        impl_->device->CreateCommandList(
+            nodeMask, type, cmdAlloc, initPipeline,
+            IID_PPV_ARGS(ret.GetAddressOf())));
+    return ret;
 }
 
 void Window::_msgClose()
@@ -503,6 +545,9 @@ void Window::_msgLostFocus()
 
 void Window::_msgResize()
 {
+    if(impl_->exiting)
+        return;
+
     waitCommandQueueIdle();
 
     eventMgr_.send(WindowPreResizeEvent{});
@@ -524,7 +569,7 @@ void Window::_msgResize()
         impl_->swapChain->ResizeBuffers(
             impl_->swapChainImageCount,
             impl_->clientWidth, impl_->clientHeight,
-            impl::SWAP_CHAIN_BUFFER_FORMAT,
+            impl_->backbufferFormat,
             DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
     // rtv desc heap

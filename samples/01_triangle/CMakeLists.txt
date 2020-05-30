@@ -1,8 +1,8 @@
 ﻿CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 
-PROJECT(00-INIT)
+PROJECT(01-TRIANGLE)
 
-SET(TargetName 00_Init)
+SET(TargetName 01_Triangle)
 
 ADD_EXECUTABLE(${TargetName} "main.cpp")
 

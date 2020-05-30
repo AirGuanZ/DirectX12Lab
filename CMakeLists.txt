@@ -45,3 +45,4 @@ TARGET_LINK_LIBRARIES(D3D12Lab PUBLIC
 ########## samples
 
 ADD_SUBDIRECTORY(samples/00_init)
+ADD_SUBDIRECTORY(samples/01_triangle)

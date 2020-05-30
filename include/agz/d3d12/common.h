@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <system_error>
 
 #include <agz/utility/math.h>
