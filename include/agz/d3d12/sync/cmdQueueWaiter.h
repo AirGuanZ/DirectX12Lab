@@ -24,11 +24,37 @@ public:
         fenceValue_ = 0;
 
         fenceEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if(!fenceEvent_)
+        {
+            throw D3D12LabException(
+                "failed to create fence event in constructing CommandQueueWaiter");
+        }
+    }
+
+    CommandQueueWaiter(CommandQueueWaiter &&other) noexcept
+    {
+        fence_.Swap(other.fence_);
+        fenceValue_ = other.fenceValue_; other.fenceValue_ = 0;
+        fenceEvent_ = other.fenceEvent_; other.fenceEvent_ = nullptr;
+    }
+
+    CommandQueueWaiter &operator=(CommandQueueWaiter &&other) noexcept
+    {
+        fence_.Reset();
+        if(fenceEvent_)
+            CloseHandle(fenceEvent_);
+
+        fence_.Swap(other.fence_);
+        fenceValue_ = other.fenceValue_; other.fenceValue_ = 0;
+        fenceEvent_ = other.fenceEvent_; other.fenceEvent_ = nullptr;
+
+        return *this;
     }
 
     ~CommandQueueWaiter()
     {
-        CloseHandle(fenceEvent_);
+        if(fenceEvent_)
+            CloseHandle(fenceEvent_);
     }
 
     void waitIdle(ID3D12CommandQueue *cmdQueue)

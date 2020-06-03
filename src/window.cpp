@@ -4,8 +4,8 @@
 #include <dxgi1_4.h>
 #include <dxgidebug.h>
 
-#include <agz/d3d12/cmdQueueWaiter.h>
-#include <agz/d3d12/window.h>
+#include <agz/d3d12/sync/cmdQueueWaiter.h>
+#include <agz/d3d12/window/window.h>
 
 AGZ_D3D12_LAB_BEGIN
 
@@ -60,12 +60,17 @@ struct WindowImplData
 
     ComPtr<IDXGISwapChain3> swapChain;
     int swapChainImageCount = 0;
+    int currentImageIndex_ = 0;
     std::vector<ComPtr<ID3D12Resource>> swapChainBuffers;
 
-    ComPtr<ID3D12DescriptorHeap> RTVDescHeap;
-    UINT RTVDescSize = 0;
+    DescriptorHeap RTVHeap;
 
     std::unique_ptr<CommandQueueWaiter> cmdQueueWaiter;
+
+    // viewport & scissor
+
+    D3D12_VIEWPORT fullwindowViewport = {};
+    D3D12_RECT     fullwindowRect     = {};
     
     // events
 
@@ -209,20 +214,20 @@ void Window::initD3D12(const WindowDesc &desc)
     swapChainDesc.BufferDesc.Width                   = impl_->clientWidth;
     swapChainDesc.BufferDesc.Height                  = impl_->clientHeight;
     swapChainDesc.BufferDesc.Format                  = desc.backbufferFormat;
-    swapChainDesc.BufferDesc.RefreshRate.Numerator   = 0;
+    swapChainDesc.BufferDesc.RefreshRate.Numerator   = 60;
     swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
     swapChainDesc.BufferDesc.Scaling                 = DXGI_MODE_SCALING_UNSPECIFIED;
     swapChainDesc.BufferDesc.ScanlineOrdering        = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
     
-    swapChainDesc.SampleDesc.Count   = desc.multisampleCount;
-    swapChainDesc.SampleDesc.Quality = desc.multisampleQuality;
+    swapChainDesc.SampleDesc.Count   = 1;
+    swapChainDesc.SampleDesc.Quality = 0;
 
     swapChainDesc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     swapChainDesc.BufferCount  = desc.imageCount;
     swapChainDesc.OutputWindow = impl_->hWindow;
     swapChainDesc.Windowed     = TRUE;
     swapChainDesc.SwapEffect   = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    swapChainDesc.Flags        = 0;
+    swapChainDesc.Flags        = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
     IDXGISwapChain *tSwapChain;
     AGZ_D3D12_CHECK_HR_MSG(
@@ -238,26 +243,19 @@ void Window::initD3D12(const WindowDesc &desc)
             impl_->swapChain->SetFullscreenState(TRUE, nullptr);
     });
 
+    impl_->currentImageIndex_ = int(impl_->swapChain
+                    ->GetCurrentBackBufferIndex());
+
     // render target descriptor heap
 
-    D3D12_DESCRIPTOR_HEAP_DESC RTVDescHeapDesc;
-    RTVDescHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    RTVDescHeapDesc.NodeMask       = 0;
-    RTVDescHeapDesc.NumDescriptors = desc.imageCount;
-    RTVDescHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-
-    AGZ_D3D12_CHECK_HR_MSG(
-        "failed to create d3d12 render target descriptor heap",
-        impl_->device->CreateDescriptorHeap(
-            &RTVDescHeapDesc, IID_PPV_ARGS(impl_->RTVDescHeap.GetAddressOf())));
-
-    impl_->RTVDescSize = impl_->device->GetDescriptorHandleIncrementSize(
-        D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    impl_->RTVHeap = DescriptorHeap(
+        impl_->device.Get(),
+        desc.imageCount,
+        D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+        false);
 
     impl_->swapChainBuffers.resize(desc.imageCount);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE descHandle(
-        impl_->RTVDescHeap->GetCPUDescriptorHandleForHeapStart());
     for(int i = 0; i < desc.imageCount; ++i)
     {
         AGZ_D3D12_CHECK_HR_MSG(
@@ -266,15 +264,27 @@ void Window::initD3D12(const WindowDesc &desc)
                 i, IID_PPV_ARGS(impl_->swapChainBuffers[i].GetAddressOf())));
 
         impl_->device->CreateRenderTargetView(
-            impl_->swapChainBuffers[i].Get(), nullptr, descHandle);
-
-        descHandle.Offset(1, impl_->RTVDescSize);
+            impl_->swapChainBuffers[i].Get(), nullptr,
+            impl_->RTVHeap.getCPUHandle(i));
     }
 
     // command queue fence
 
     impl_->cmdQueueWaiter = std::make_unique<CommandQueueWaiter>(
         impl_->device.Get());
+
+    // viewport & scissor
+
+    impl_->fullwindowViewport = {
+        0, 0,
+        float(impl_->clientWidth),
+        float(impl_->clientHeight),
+        0, 1
+    };
+
+    impl_->fullwindowRect = {
+        0, 0, impl_->clientWidth, impl_->clientHeight
+    };
 }
 
 void Window::initKeyboardAndMouse()
@@ -303,7 +313,7 @@ Window::~Window()
     impl_->cmdQueueWaiter.reset();
 
     impl_->swapChainBuffers.clear();
-    impl_->RTVDescHeap.Reset();
+    impl_->RTVHeap = {};
 
     if(impl_->swapChain)
         impl_->swapChain->SetFullscreenState(FALSE, nullptr);
@@ -409,24 +419,22 @@ int Window::getImageCount() const noexcept
 
 int Window::getCurrentImageIndex() const
 {
-    return static_cast<int>(impl_->swapChain->GetCurrentBackBufferIndex());
+    return static_cast<int>(impl_->currentImageIndex_);
 }
 
-ID3D12Resource *Window::getImage(int index) const noexcept
+ID3D12Resource *Window::getCurrentImage(int index) const noexcept
 {
     return impl_->swapChainBuffers[index].Get();
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE Window::getImageDescHandle(int index) const noexcept
+D3D12_CPU_DESCRIPTOR_HANDLE Window::getCurrentImageDescHandle() const noexcept
 {
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-        impl_->RTVDescHeap->GetCPUDescriptorHandleForHeapStart(),
-        index, impl_->RTVDescSize);
+    return impl_->RTVHeap.getCPUHandle(impl_->currentImageIndex_);
 }
 
 UINT Window::getImageDescSize() const noexcept
 {
-    return impl_->RTVDescSize;
+    return impl_->RTVHeap.getDescIncSize();
 }
 
 void Window::present() const
@@ -434,6 +442,8 @@ void Window::present() const
     AGZ_D3D12_CHECK_HR_MSG(
         "failed to present swap chain image",
         impl_->swapChain->Present(impl_->vsync ? 1 : 0, 0));
+    impl_->currentImageIndex_ = (impl_->currentImageIndex_ + 1)
+                               % impl_->swapChainImageCount;
 }
 
 int Window::getImageWidth() const noexcept
@@ -444,6 +454,21 @@ int Window::getImageWidth() const noexcept
 int Window::getImageHeight() const noexcept
 {
     return impl_->clientHeight;
+}
+
+float Window::getImageWOverH() const noexcept
+{
+    return float(getImageWidth()) / getImageHeight();
+}
+
+const D3D12_VIEWPORT &Window::getDefaultViewport() const noexcept
+{
+    return impl_->fullwindowViewport;
+}
+
+const D3D12_RECT &Window::getDefaultScissorRect() const noexcept
+{
+    return impl_->fullwindowRect;
 }
 
 ID3D12Device *Window::getDevice()
@@ -496,6 +521,22 @@ ComPtr<ID3D12GraphicsCommandList> Window::createGraphicsCommandList(
             nodeMask, type, cmdAlloc, initPipeline,
             IID_PPV_ARGS(ret.GetAddressOf())));
     return ret;
+}
+
+CommandQueueWaiter Window::createCmdQueueWaiter() const
+{
+    return CommandQueueWaiter(impl_->device.Get());
+}
+
+GraphicsPipelineStateBuilder Window::createPipelineBuilder() const
+{
+    return GraphicsPipelineStateBuilder(impl_->device.Get());
+}
+
+DescriptorHeap Window::createDescriptorHeap(
+    int size, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible) const
+{
+    return DescriptorHeap(impl_->device.Get(), size, type, shaderVisible);
 }
 
 void Window::_msgClose()
@@ -559,6 +600,17 @@ void Window::_msgResize()
     impl_->clientWidth  = clientRect.right - clientRect.left;
     impl_->clientHeight = clientRect.bottom - clientRect.top;
 
+    impl_->fullwindowViewport = {
+        0, 0,
+        float(impl_->clientWidth),
+        float(impl_->clientHeight),
+        0, 1
+    };
+
+    impl_->fullwindowRect = {
+        0, 0, impl_->clientWidth, impl_->clientHeight
+    };
+
     // resize swap chain buffers
 
     for(auto &b : impl_->swapChainBuffers)
@@ -572,10 +624,11 @@ void Window::_msgResize()
             impl_->backbufferFormat,
             DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
+    impl_->currentImageIndex_ = int(impl_->swapChain
+                    ->GetCurrentBackBufferIndex());
+
     // rtv desc heap
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE descHandle(
-        impl_->RTVDescHeap->GetCPUDescriptorHandleForHeapStart());
     for(int i = 0; i < impl_->swapChainImageCount; ++i)
     {
         AGZ_D3D12_CHECK_HR_MSG(
@@ -584,9 +637,8 @@ void Window::_msgResize()
                 i, IID_PPV_ARGS(impl_->swapChainBuffers[i].GetAddressOf())));
 
         impl_->device->CreateRenderTargetView(
-            impl_->swapChainBuffers[i].Get(), nullptr, descHandle);
-
-        descHandle.Offset(1, impl_->RTVDescSize);
+            impl_->swapChainBuffers[i].Get(), nullptr,
+            impl_->RTVHeap.getCPUHandle(i));
     }
 
     eventMgr_.send(WindowPostResizeEvent{});

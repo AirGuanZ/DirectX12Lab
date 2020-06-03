@@ -1,6 +1,6 @@
 #include <Windows.h>
 
-#include <agz/d3d12/mouse.h>
+#include <agz/d3d12/window/mouse.h>
 
 AGZ_D3D12_LAB_BEGIN
 

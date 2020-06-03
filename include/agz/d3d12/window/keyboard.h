@@ -7,7 +7,7 @@
 
 AGZ_D3D12_LAB_BEGIN
 
-using namespace event::keycode::keycode_values;
+using namespace event::keycode::keycode_constants;
 
 using KeyCode = event::keycode::keycode_t;
 
@@ -74,7 +74,7 @@ public:
 
 inline void Keyboard::updateSingleKey(bool pressed, KeyCode keycode)
 {
-    bool lastPressed = isPressed(keycode);
+    const bool lastPressed = isPressed(keycode);
     if(pressed && !lastPressed)
         _msgDown(keycode);
     else if(!pressed && lastPressed)
@@ -109,10 +109,10 @@ inline void Keyboard::_startUpdating()
 
 inline void Keyboard::_endUpdating()
 {
-    bool leftShiftPressed  = (GetAsyncKeyState(VK_LSHIFT)   & 0x8000) != 0;
-    bool rightShiftPressed = (GetAsyncKeyState(VK_RSHIFT)   & 0x8000) != 0;
-    bool leftCtrlPressed   = (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
-    bool rightCtrlPressed  = (GetAsyncKeyState(VK_RCONTROL) & 0x8000) != 0;
+    const bool leftShiftPressed  = (GetAsyncKeyState(VK_LSHIFT)   & 0x8000) != 0;
+    const bool rightShiftPressed = (GetAsyncKeyState(VK_RSHIFT)   & 0x8000) != 0;
+    const bool leftCtrlPressed   = (GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0;
+    const bool rightCtrlPressed  = (GetAsyncKeyState(VK_RCONTROL) & 0x8000) != 0;
 
     updateSingleKey(leftShiftPressed,  KEY_LSHIFT);
     updateSingleKey(rightShiftPressed, KEY_RSHIFT);

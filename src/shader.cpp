@@ -1,6 +1,6 @@
 #include <d3dcompiler.h>
 
-#include <agz/d3d12/shader.h>
+#include <agz/d3d12/pipeline/shader.h>
 
 AGZ_D3D12_LAB_BEGIN
 

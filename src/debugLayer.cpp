@@ -2,7 +2,7 @@
 #include <dxgi1_3.h>
 #include <dxgidebug.h>
 
-#include <agz/d3d12/debugLayer.h>
+#include <agz/d3d12/window/debugLayer.h>
 
 AGZ_D3D12_LAB_BEGIN
 

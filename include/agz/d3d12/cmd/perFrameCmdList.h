@@ -1,6 +1,6 @@
 #pragma once
 
-#include <agz/d3d12/window.h>
+#include <agz/d3d12/window/window.h>
 
 AGZ_D3D12_LAB_BEGIN
 

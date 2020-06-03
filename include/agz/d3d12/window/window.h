@@ -5,9 +5,12 @@
 
 #include <d3d12.h>
 
-#include <agz/d3d12/keyboard.h>
-#include <agz/d3d12/mouse.h>
-#include <agz/d3d12/windowEvent.h>
+#include <agz/d3d12/pipeline/descriptorHeap.h>
+#include <agz/d3d12/pipeline/pipelineState.h>
+#include <agz/d3d12/sync/cmdQueueWaiter.h>
+#include <agz/d3d12/window/keyboard.h>
+#include <agz/d3d12/window/mouse.h>
+#include <agz/d3d12/window/windowEvent.h>
 
 AGZ_D3D12_LAB_BEGIN
 
@@ -28,9 +31,6 @@ struct WindowDesc
     bool vsync = true;
 
     DXGI_FORMAT backbufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-    int multisampleCount   = 1;
-    int multisampleQuality = 0;
 
     int imageCount = 2;
 
@@ -73,9 +73,9 @@ public:
 
     int getCurrentImageIndex() const;
 
-    ID3D12Resource *getImage(int index) const noexcept;
+    ID3D12Resource *getCurrentImage(int index) const noexcept;
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE getImageDescHandle(int index) const noexcept;
+    D3D12_CPU_DESCRIPTOR_HANDLE getCurrentImageDescHandle() const noexcept;
 
     UINT getImageDescSize() const noexcept;
 
@@ -84,6 +84,12 @@ public:
     int getImageWidth() const noexcept;
 
     int getImageHeight() const noexcept;
+
+    float getImageWOverH() const noexcept;
+
+    const D3D12_VIEWPORT &getDefaultViewport() const noexcept;
+
+    const D3D12_RECT &getDefaultScissorRect() const noexcept;
 
     // d3d12 device/queue
 
@@ -107,6 +113,13 @@ public:
         D3D12_COMMAND_LIST_TYPE type,
         ID3D12CommandAllocator *cmdAlloc,
         ID3D12PipelineState    *initPipeline);
+
+    CommandQueueWaiter createCmdQueueWaiter() const;
+
+    GraphicsPipelineStateBuilder createPipelineBuilder() const;
+
+    DescriptorHeap createDescriptorHeap(
+        int size, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible) const;
 
     // event handler manager
 
