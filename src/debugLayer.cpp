@@ -4,7 +4,7 @@
 
 #include <agz/d3d12/window/debugLayer.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 void enableD3D12DebugLayer()
 {
@@ -28,4 +28,4 @@ void enableD3D12DebugLayer()
     }
 }
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

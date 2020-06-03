@@ -2,7 +2,7 @@
 
 #include <agz/d3d12/window/window.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 class PerFrameCommandList : public misc::uncopyable_t
 {
@@ -110,4 +110,4 @@ inline int PerFrameCommandList::getFrameIndex() const noexcept
     return curFrameIndex_;
 }
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

@@ -8,10 +8,10 @@
 
 #include <wrl/client.h>
 
-#define AGZ_D3D12_LAB_BEGIN namespace agz::d3d12 {
-#define AGZ_D3D12_LAB_END   }
+#define AGZ_D3D12_BEGIN namespace agz::d3d12 {
+#define AGZ_D3D12_END   }
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 using Vec2 = math::vec2f;
 using Vec3 = math::vec3f;
@@ -65,4 +65,4 @@ public:
         }                                                                      \
     } while(false)
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

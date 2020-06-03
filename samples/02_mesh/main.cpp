@@ -44,7 +44,7 @@ struct PSInput
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float lf  = max(dot(normalize(input.nor), normalize(float3(-2, 1, 1))), 0);
+    float lf  = max(dot(normalize(input.nor), normalize(float3(-1, 1, 1))), 0);
     float lum = 0.6 * saturate(lf * lf + 0.05);
     float color = pow(lum, 1 / 2.2);
     return float4(color, color, color, 1);
@@ -88,10 +88,10 @@ void updateCBTransform(
     const float aspectRatio)
 {
     const auto duration = std::chrono::high_resolution_clock::now() - start;
-    const float s = std::chrono::duration_cast<
+    const float t = std::chrono::duration_cast<
         std::chrono::microseconds>(duration).count() / 1e6f;
 
-    const Mat4 world = Trans4::rotate_y(s);
+    const Mat4 world = Trans4::rotate_y(t);
     const Mat4 view  = Trans4::look_at({ -4, 0, 0 }, { 0, 0, 0 }, { 0, 1, 0 });
     const Mat4 proj  = Trans4::perspective(
         agz::math::deg2rad(60.0f), aspectRatio, 0.1f, 100.0f);
@@ -165,26 +165,26 @@ void run()
         .setPixelShader(compiler.compileShader(PIXEL_SHADER_SOURCE, "ps_5_0"))
         .setRenderTargetFormats({ desc.backbufferFormat })
         .setInputElements(inputDescs)
+        .setDepthStencilBufferFormat(DXGI_FORMAT_D24_UNORM_S8_UINT)
+        .setDepthStencilTestState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT))
         .createPipelineState();
 
     // vertex buffer
 
-    const auto vertexData = loadMesh("./asset/02_mesh.obj");
+    auto vertexData = loadMesh("./asset/02_mesh.obj");
 
     cmdList.resetCommandList();
-
     VertexBuffer<Vertex> vertexBuffer;
     auto uploadBuf = vertexBuffer.initializeStatic(
         device,
         cmdList.getCmdList(),
         vertexData.size(),
         vertexData.data());
-    
+    vertexData.clear();
     cmdList->Close();
-    
-    ID3D12CommandList *copyCmdLists[] = { cmdList.getCmdList() };
-    window.getCommandQueue()->ExecuteCommandLists(1, copyCmdLists);
-    
+
+    window.executeOneCmdList(cmdList.getCmdList());
+
     window.waitCommandQueueIdle();
     uploadBuf.Reset();
 
@@ -193,6 +193,44 @@ void run()
     ConstantBuffer<CBTransform> cbTransform;
     cbTransform.initializeDynamic(
         device, window.getImageCount());
+
+    // depth stencil buffer
+
+    ComPtr<ID3D12Resource> depthStencilBuffer;
+    std::unique_ptr<DescriptorHeap> dsvHeap;
+
+    auto prepareDepthStencilBuffer = [&]
+    {
+        depthStencilBuffer = createDepthStencilBuffer(
+            device, window.getImageWidth(), window.getImageHeight(),
+            DXGI_FORMAT_D24_UNORM_S8_UINT);
+
+        cmdList.resetCommandList();
+        const auto depthStencilBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            depthStencilBuffer.Get(),
+            D3D12_RESOURCE_STATE_COMMON,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        cmdList->ResourceBarrier(1, &depthStencilBarrier);
+        cmdList->Close();
+
+        window.executeOneCmdList(cmdList.getCmdList());
+
+        dsvHeap = std::make_unique<DescriptorHeap>(
+            device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false);
+
+        device->CreateDepthStencilView(
+            depthStencilBuffer.Get(),
+            nullptr, dsvHeap->getCPUHandle(0));
+
+        window.waitCommandQueueIdle();
+    };
+
+    prepareDepthStencilBuffer();
+
+    window.attach(std::make_shared<WindowPostResizeHandler>([&]
+    {
+        prepareDepthStencilBuffer();
+    }));
 
     // mainloop
 
@@ -206,7 +244,7 @@ void run()
         cmdList.startFrame();
         cmdList.resetCommandList();
 
-        // record command list
+        // prepare render target & depth stencil buffer
 
         const auto barrier1 = CD3DX12_RESOURCE_BARRIER::Transition(
             window.getCurrentImage(cmdList.getFrameIndex()),
@@ -214,13 +252,17 @@ void run()
             D3D12_RESOURCE_STATE_RENDER_TARGET);
         cmdList->ResourceBarrier(1, &barrier1);
 
-        auto rtvHandle = window.getCurrentImageDescHandle();
-        cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+        const auto rtvHandle = window.getCurrentImageDescHandle();
+        const auto dsvHandle = dsvHeap->getCPUHandle(0);
+        cmdList->OMSetRenderTargets(
+            1, &rtvHandle, FALSE, &dsvHandle);
 
         const float CLEAR_COLOR[] = { 0, 0, 0, 0 };
         cmdList->ClearRenderTargetView(rtvHandle, CLEAR_COLOR, 0, nullptr);
+        cmdList->ClearDepthStencilView(
+            dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
 
-        const auto vertexBufferView = vertexBuffer.getView();
+        // root signature & constant buffer
 
         updateCBTransform(
             window.getCurrentImageIndex(),
@@ -233,13 +275,23 @@ void run()
             0, cbTransform.getGpuVirtualAddress(window.getCurrentImageIndex()));
         cmdList->SetPipelineState(pipeline.Get());
 
+        // viewport & scissor
+
         cmdList->RSSetViewports(1, &window.getDefaultViewport());
         cmdList->RSSetScissorRects(1, &window.getDefaultScissorRect());
 
+        // input topology & vertex buffer
+
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        const auto vertexBufferView = vertexBuffer.getView();
         cmdList->IASetVertexBuffers(0, 1, &vertexBufferView);
 
+        // drawcall
+
         cmdList->DrawInstanced(UINT(vertexBuffer.getVertexCount()), 1, 0, 0);
+
+        // render target state transition
 
         const auto barrier2 = CD3DX12_RESOURCE_BARRIER::Transition(
             window.getCurrentImage(cmdList.getFrameIndex()),
@@ -251,8 +303,7 @@ void run()
 
         // render
 
-        ID3D12CommandList *cmdListArr[] = { cmdList.getCmdList() };
-        window.getCommandQueue()->ExecuteCommandLists(1, cmdListArr);
+        window.executeOneCmdList(cmdList.getCmdList());
 
         // present
 

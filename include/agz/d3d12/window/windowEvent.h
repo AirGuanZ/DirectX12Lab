@@ -3,7 +3,7 @@
 #include <agz/d3d12/common.h>
 #include <agz/utility/event.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 struct WindowCloseEvent      { };
 struct WindowGetFocusEvent   { };
@@ -24,4 +24,4 @@ using WindowEventManager = event::sender_t<
     WindowPreResizeEvent,
     WindowPostResizeEvent>;
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

@@ -5,7 +5,7 @@
 
 #include <agz/d3d12/pipeline/shader.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 class InputLayoutBuilder
 {
@@ -76,6 +76,9 @@ public:
 
     GraphicsPipelineStateBuilder &setDepthStencilBufferFormat(
         DXGI_FORMAT format) noexcept;
+
+    GraphicsPipelineStateBuilder &setDepthStencilTestState(
+        const D3D12_DEPTH_STENCIL_DESC &desc) noexcept;
 
     // multisample
 
@@ -231,6 +234,14 @@ inline GraphicsPipelineStateBuilder &
     return *this;
 }
 
+inline class GraphicsPipelineStateBuilder &
+    GraphicsPipelineStateBuilder::setDepthStencilTestState(
+        const D3D12_DEPTH_STENCIL_DESC &desc) noexcept
+{
+    desc_.DepthStencilState = desc;
+    return *this;
+}
+
 inline GraphicsPipelineStateBuilder &
     GraphicsPipelineStateBuilder::setMultisample(
         int count, int quality) noexcept
@@ -299,4 +310,4 @@ inline GraphicsPipelineStateBuilder &
     return *this;
 }
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

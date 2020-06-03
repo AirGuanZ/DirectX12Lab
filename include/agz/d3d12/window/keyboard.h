@@ -5,7 +5,7 @@
 #include <agz/d3d12/common.h>
 #include <agz/utility/event.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 using namespace event::keycode::keycode_constants;
 
@@ -153,4 +153,4 @@ inline void Keyboard::_msgRawUp(uint32_t vk)
     eventMgr_.send(RawKeyUpEvent{ vk });
 }
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

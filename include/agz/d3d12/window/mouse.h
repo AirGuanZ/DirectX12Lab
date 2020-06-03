@@ -3,7 +3,7 @@
 #include <agz/d3d12/common.h>
 #include <agz/utility/event.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 enum class MouseButton
 {
@@ -101,4 +101,4 @@ public:
     void _msg(UINT msg, WPARAM wParam);
 };
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

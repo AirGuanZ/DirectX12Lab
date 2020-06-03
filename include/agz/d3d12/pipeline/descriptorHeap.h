@@ -5,7 +5,7 @@
 
 #include <agz/d3d12/common.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 class DescriptorHeap : public misc::uncopyable_t
 {
@@ -130,4 +130,4 @@ inline void DescriptorHeap::swap(DescriptorHeap &other) noexcept
     std::swap(gpuStart_,    other.gpuStart_);
 }
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

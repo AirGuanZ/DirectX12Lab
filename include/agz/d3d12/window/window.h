@@ -12,7 +12,7 @@
 #include <agz/d3d12/window/mouse.h>
 #include <agz/d3d12/window/windowEvent.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 struct WindowDesc
 {
@@ -97,6 +97,8 @@ public:
 
     ID3D12CommandQueue *getCommandQueue();
 
+    void executeOneCmdList(ID3D12CommandList *cmdList);
+
     void waitCommandQueueIdle();
 
     // fast create
@@ -162,4 +164,4 @@ private:
     WindowEventManager eventMgr_;
 };
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

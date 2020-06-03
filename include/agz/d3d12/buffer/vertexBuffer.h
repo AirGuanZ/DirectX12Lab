@@ -2,7 +2,7 @@
 
 #include <agz/d3d12/buffer/buffer.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 class RawVertexBuffer : public misc::uncopyable_t
 {
@@ -266,4 +266,4 @@ VertexBuffer<Vertex>::operator const RawVertexBuffer&() const noexcept
     return buffer_;
 }
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

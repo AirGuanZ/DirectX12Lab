@@ -7,7 +7,7 @@
 #include <agz/d3d12/sync/cmdQueueWaiter.h>
 #include <agz/d3d12/window/window.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 namespace impl
 {
@@ -481,6 +481,11 @@ ID3D12CommandQueue *Window::getCommandQueue()
     return impl_->cmdQueue.Get();
 }
 
+void Window::executeOneCmdList(ID3D12CommandList *cmdList)
+{
+    impl_->cmdQueue->ExecuteCommandLists(1, &cmdList);
+}
+
 void Window::waitCommandQueueIdle()
 {
     impl_->cmdQueueWaiter->waitIdle(impl_->cmdQueue.Get());
@@ -694,4 +699,4 @@ LRESULT impl::windowMessageProc(
     return DefWindowProcW(hWindow, msg, wParam, lParam);
 }
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

@@ -5,7 +5,7 @@
 
 #include <agz/d3d12/common.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 class Buffer : public misc::uncopyable_t
 {
@@ -195,4 +195,4 @@ inline void Buffer::updateContentData(
     std::memcpy(static_cast<char*>(mappedData_) + offset, data, byteSize);
 }
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

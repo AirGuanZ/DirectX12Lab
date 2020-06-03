@@ -2,7 +2,7 @@
 
 #include <agz/d3d12/pipeline/shader.h>
 
-AGZ_D3D12_LAB_BEGIN
+AGZ_D3D12_BEGIN
 
 ShaderCompiler::ShaderCompiler()
 {
@@ -106,4 +106,4 @@ D3D12_SHADER_BYTECODE blobToByteCode(ComPtr<ID3D10Blob> blob)
     return ret;
 }
 
-AGZ_D3D12_LAB_END
+AGZ_D3D12_END

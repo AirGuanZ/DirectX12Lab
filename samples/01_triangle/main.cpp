@@ -130,8 +130,7 @@ void run()
     
     cmdList->Close();
     
-    ID3D12CommandList *copyCmdLists[] = { cmdList.getCmdList() };
-    window.getCommandQueue()->ExecuteCommandLists(1, copyCmdLists);
+    window.executeOneCmdList(cmdList.getCmdList());
     
     window.waitCommandQueueIdle();
     uploadBuf.Reset();
@@ -183,8 +182,7 @@ void run()
 
         // render
 
-        ID3D12CommandList *cmdListArr[] = { cmdList.getCmdList() };
-        window.getCommandQueue()->ExecuteCommandLists(1, cmdListArr);
+        window.executeOneCmdList(cmdList.getCmdList());
 
         // present
 
