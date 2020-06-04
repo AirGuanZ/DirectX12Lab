@@ -53,12 +53,15 @@ struct WindowImplData
 
     bool vsync = true;
 
-    DXGI_FORMAT backbufferFormat = DXGI_FORMAT_UNKNOWN;
+    DXGI_FORMAT backbufferFormat   = DXGI_FORMAT_UNKNOWN;
+    DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_UNKNOWN;
 
     ComPtr<ID3D12Device>       device;
     ComPtr<ID3D12CommandQueue> cmdQueue;
+    
 
     ComPtr<IDXGISwapChain3> swapChain;
+
     int swapChainImageCount = 0;
     int currentImageIndex_ = 0;
     std::vector<ComPtr<ID3D12Resource>> swapChainBuffers;

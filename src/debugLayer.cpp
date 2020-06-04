@@ -6,13 +6,22 @@
 
 AGZ_D3D12_BEGIN
 
-void enableD3D12DebugLayer()
+void enableD3D12DebugLayer(bool gpuBasedValidation)
 {
     ComPtr<ID3D12Debug> debugController;
     if(SUCCEEDED(D3D12GetDebugInterface(
         IID_PPV_ARGS(debugController.GetAddressOf()))))
     {
         debugController->EnableDebugLayer();
+
+        if(gpuBasedValidation)
+        {
+            ComPtr<ID3D12Debug1> debug1;
+            AGZ_D3D12_CHECK_HR(
+                debugController->QueryInterface(
+                    IID_PPV_ARGS(debug1.GetAddressOf())));
+            debug1->SetEnableGPUBasedValidation(TRUE);
+        }
     }
     else
         OutputDebugStringA("WARNING: Direct3D Debug Device is not available\n");

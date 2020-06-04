@@ -5,7 +5,7 @@
 
 AGZ_D3D12_BEGIN
 
-void enableD3D12DebugLayer();
+void enableD3D12DebugLayer(bool gpuBasedValidation = false);
 
 inline void enableD3D12DebugLayerInDebugMode()
 {

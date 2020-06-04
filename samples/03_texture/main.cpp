@@ -4,6 +4,7 @@
 
 #include <agz/d3d12/D3D12Lab.h>
 #include <agz/utility/mesh.h>
+#include <agz/utility/image.h>
 
 using namespace agz::d3d12;
 
@@ -18,12 +19,14 @@ struct VSInput
 {
     float3 pos : POSITION;
     float3 nor : NORMAL;
+    float2 uv  : TEXCOORD;
 };
 
 struct VSOutput
 {
     float4 pos : SV_POSITION;
     float3 nor : NORMAL;
+    float2 uv  : TEXCOORD;
 };
 
 VSOutput main(VSInput input)
@@ -31,6 +34,7 @@ VSOutput main(VSInput input)
     VSOutput output = (VSOutput)0;
     output.pos = mul(float4(input.pos, 1), WVP);
     output.nor = normalize(mul(float4(input.nor, 0), World).xyz);
+    output.uv  = input.uv;
     return output;
 }
 )___";
@@ -40,14 +44,21 @@ struct PSInput
 {
     float4 pos : SV_POSITION;
     float3 nor : NORMAL;
+    float2 uv  : TEXCOORD;
 };
+
+Texture2D    Tex : register(t0);
+SamplerState Sam : register(s0);
 
 float4 main(PSInput input) : SV_TARGET
 {
     float lf  = max(dot(normalize(input.nor), normalize(float3(-1, 1, 1))), 0);
     float lum = 0.6 * saturate(lf * lf + 0.05);
-    float color = pow(lum, 1 / 2.2);
-    return float4(color, color, color, 1);
+    float4 tex = pow(Tex.Sample(Sam, input.uv), 2.2);
+    if(tex.a < 0.5)
+        discard;
+    float3 color = pow(lum * tex.rgb, 1 / 2.2);
+    return float4(color, 1);
 }
 )___";
 
@@ -55,6 +66,7 @@ struct Vertex
 {
     Vec3 pos;
     Vec3 nor;
+    Vec2 uv;
 };
 
 std::vector<Vertex> loadMesh(const std::string &filename)
@@ -69,7 +81,7 @@ std::vector<Vertex> loadMesh(const std::string &filename)
     std::transform(mesh.begin(), mesh.end(), std::back_inserter(ret),
         [scale, offset](const agz::mesh::vertex_t &v)
     {
-        return Vertex{ scale * (v.position + offset), v.normal };
+        return Vertex{ scale * (v.position + offset), v.normal, v.tex_coord };
     });
 
     return ret;
@@ -104,7 +116,7 @@ void run()
     enableD3D12DebugLayerInDebugMode();
 
     WindowDesc desc;
-    desc.title = L"02.mesh";
+    desc.title = L"03.texture";
 
     Window window(desc);
 
@@ -121,15 +133,28 @@ void run()
     // cmd list
 
     PerFrameCommandList cmdList(window);
+    GraphicsCommandList uploadCmdList(window.getDevice());
 
     // root signature
 
-    CD3DX12_ROOT_PARAMETER rootParams[1] = {};
-    rootParams[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    D3D12_DESCRIPTOR_RANGE texRange[1];
+    texRange[0].BaseShaderRegister                = 0;
+    texRange[0].NumDescriptors                    = 1;
+    texRange[0].OffsetInDescriptorsFromTableStart = 0;
+    texRange[0].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    texRange[0].RegisterSpace                     = 0;
+
+    CD3DX12_ROOT_PARAMETER rootParams[2] = {};
+    rootParams[0].InitAsConstantBufferView(0);
+    rootParams[1].InitAsDescriptorTable(1, texRange);
+
+    CD3DX12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
+    staticSamplers[0].Init(0);
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(
-        UINT(agz::array_size(rootParams)), rootParams, 0, nullptr,
+        UINT(agz::array_size(rootParams)), rootParams,
+        UINT(agz::array_size(staticSamplers)), staticSamplers,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
     ComPtr<ID3D10Blob> rootSignatureBlob;
@@ -151,7 +176,9 @@ void run()
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, pos),
           D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, nor),
-          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, uv),
+          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 
     ShaderCompiler compiler;
@@ -171,19 +198,19 @@ void run()
 
     // vertex buffer
 
-    auto vertexData = loadMesh("./asset/02_mesh.obj");
+    auto vertexData = loadMesh("./asset/03_cube.obj");
 
-    cmdList.resetCommandList();
+    uploadCmdList.resetCommandList();
     VertexBuffer<Vertex> vertexBuffer;
     auto uploadBuf = vertexBuffer.initializeStatic(
         device,
-        cmdList.getCmdList(),
+        uploadCmdList.getCmdList(),
         vertexData.size(),
         vertexData.data());
     vertexData.clear();
-    cmdList->Close();
+    uploadCmdList->Close();
 
-    window.executeOneCmdList(cmdList.getCmdList());
+    window.executeOneCmdList(uploadCmdList.getCmdList());
 
     window.waitCommandQueueIdle();
     uploadBuf.Reset();
@@ -204,15 +231,15 @@ void run()
             device, window.getImageWidth(), window.getImageHeight(),
             DXGI_FORMAT_D24_UNORM_S8_UINT);
 
-        cmdList.resetCommandList();
+        uploadCmdList.resetCommandList();
         const auto depthStencilBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
             depthStencilBuffer.getResource(),
             D3D12_RESOURCE_STATE_COMMON,
             D3D12_RESOURCE_STATE_DEPTH_WRITE);
-        cmdList->ResourceBarrier(1, &depthStencilBarrier);
-        cmdList->Close();
+        uploadCmdList->ResourceBarrier(1, &depthStencilBarrier);
+        uploadCmdList->Close();
 
-        window.executeOneCmdList(cmdList.getCmdList());
+        window.executeOneCmdList(uploadCmdList.getCmdList());
 
         window.waitCommandQueueIdle();
     };
@@ -223,6 +250,40 @@ void run()
     {
         prepareDepthStencilBuffer();
     }));
+
+    // texture
+
+    auto texData = agz::texture::texture2d_t<agz::math::color4b>(
+        agz::img::load_rgba_from_file("./asset/03_texture.png"));
+    if(!texData.is_available())
+        throw std::runtime_error("failed to load texture data from file");
+
+    uploadCmdList.resetCommandList();
+    auto tex = loadTexture2DFromMemory(
+        device, uploadCmdList.getCmdList(), texData);
+
+    uploadCmdList->Close();
+    window.executeOneCmdList(uploadCmdList.getCmdList());
+    window.waitCommandQueueIdle();
+
+    tex.uploadResource.Reset();
+
+    // SRV heap
+
+    DescriptorHeap srvHeap(
+        device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    srvDesc.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MipLevels           = 1;
+    srvDesc.Texture2D.MostDetailedMip     = 0;
+    srvDesc.Texture2D.PlaneSlice          = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0;
+
+    device->CreateShaderResourceView(
+        tex.textureResource.Get(), &srvDesc, srvHeap.getCPUHandle(0));
 
     // mainloop
 
@@ -265,6 +326,12 @@ void run()
         cmdList->SetGraphicsRootSignature(rootSignature.Get());
         cmdList->SetGraphicsRootConstantBufferView(
             0, cbTransform.getGpuVirtualAddress(window.getCurrentImageIndex()));
+
+        ID3D12DescriptorHeap *rawSRVHeap[] = { srvHeap.getHeap() };
+        cmdList->SetDescriptorHeaps(1, rawSRVHeap);
+        cmdList->SetGraphicsRootDescriptorTable(
+            1, srvHeap.getGPUHandle(0));
+
         cmdList->SetPipelineState(pipeline.Get());
 
         // viewport & scissor
