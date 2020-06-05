@@ -137,37 +137,14 @@ void run()
 
     // root signature
 
-    D3D12_DESCRIPTOR_RANGE texRange[1];
-    texRange[0].BaseShaderRegister                = 0;
-    texRange[0].NumDescriptors                    = 1;
-    texRange[0].OffsetInDescriptorsFromTableStart = 0;
-    texRange[0].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    texRange[0].RegisterSpace                     = 0;
-
-    CD3DX12_ROOT_PARAMETER rootParams[2] = {};
-    rootParams[0].InitAsConstantBufferView(0);
-    rootParams[1].InitAsDescriptorTable(1, texRange);
-
-    CD3DX12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
-    staticSamplers[0].Init(0);
-
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(
-        UINT(agz::array_size(rootParams)), rootParams,
-        UINT(agz::array_size(staticSamplers)), staticSamplers,
-        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-    ComPtr<ID3D10Blob> rootSignatureBlob;
-    AGZ_D3D12_CHECK_HR(D3D12SerializeRootSignature(
-        &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-        rootSignatureBlob.GetAddressOf(), nullptr));
-
-    ComPtr<ID3D12RootSignature> rootSignature;
-    AGZ_D3D12_CHECK_HR(device->CreateRootSignature(
-        0,
-        rootSignatureBlob->GetBufferPointer(),
-        rootSignatureBlob->GetBufferSize(),
-        IID_PPV_ARGS(rootSignature.GetAddressOf())));
+    auto rootSignature = createRootSignature(
+        device,
+        R"___(
+            inputAssembly;
+            s0b0, vertex : CBV;                                  # vsTransform
+                  pixel  : { s0t0 : SRV; };                      # desc table for psTexture
+            s0s0, pixel  : { filter : linear, linear, linear; }; # psSampler
+        )___");
 
     // pipeline state
 

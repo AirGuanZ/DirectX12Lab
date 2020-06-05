@@ -24,7 +24,7 @@ public:
 
     Buffer &operator=(Buffer &&other) noexcept;
     
-    ComPtr<ID3D12Resource> initializeStatic(
+    [[nodiscard]] ComPtr<ID3D12Resource> initializeStatic(
         ID3D12Device              *device,
         ID3D12GraphicsCommandList *copyCmdList,
         size_t                     byteSize,
@@ -69,7 +69,7 @@ inline Buffer &Buffer::operator=(Buffer &&other) noexcept
     return *this;
 }
 
-inline [[nodiscard]] ComPtr<ID3D12Resource> Buffer::initializeStatic(
+[[nodiscard]] inline ComPtr<ID3D12Resource> Buffer::initializeStatic(
     ID3D12Device              *device,
     ID3D12GraphicsCommandList *copyCmdList,
     size_t                     byteSize,
