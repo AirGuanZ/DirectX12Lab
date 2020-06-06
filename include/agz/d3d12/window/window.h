@@ -5,7 +5,7 @@
 
 #include <d3d12.h>
 
-#include <agz/d3d12/pipeline/descriptorHeap.h>
+#include <agz/d3d12/descriptor/rawDescriptorHeap.h>
 #include <agz/d3d12/pipeline/pipelineState.h>
 #include <agz/d3d12/sync/cmdQueueWaiter.h>
 #include <agz/d3d12/window/keyboard.h>
@@ -120,7 +120,7 @@ public:
 
     GraphicsPipelineStateBuilder createPipelineBuilder() const;
 
-    DescriptorHeap createDescriptorHeap(
+    RawDescriptorHeap createDescriptorHeap(
         int size, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible) const;
 
     // event handler manager

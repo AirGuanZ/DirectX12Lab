@@ -3,10 +3,16 @@
 #include <agz/d3d12/buffer/constantBuffer.h>
 #include <agz/d3d12/buffer/vertexBuffer.h>
 
+#include <agz/d3d12/camera/walkingCamera.h>
+
 #include <agz/d3d12/cmd/perFrameCmdList.h>
 #include <agz/d3d12/cmd/singleCmdList.h>
 
-#include <agz/d3d12/pipeline/descriptorHeap.h>
+#include <agz/d3d12/descriptor/rawDescriptorHeap.h>
+#include <agz/d3d12/descriptor/descriptorHeap.h>
+
+#include <agz/d3d12/misc/resourceReleaser.h>
+
 #include <agz/d3d12/pipeline/pipelineState.h>
 #include <agz/d3d12/pipeline/rootSignature.h>
 #include <agz/d3d12/pipeline/shader.h>

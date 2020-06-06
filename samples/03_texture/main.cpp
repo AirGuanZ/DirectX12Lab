@@ -52,11 +52,9 @@ SamplerState Sam : register(s0);
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float lf  = max(dot(normalize(input.nor), normalize(float3(-1, 1, 1))), 0);
+    float lf  = max(dot(normalize(input.nor), normalize(float3(-2, 1.5, 1))), 0);
     float lum = 0.6 * saturate(lf * lf + 0.05);
     float4 tex = pow(Tex.Sample(Sam, input.uv), 2.2);
-    if(tex.a < 0.5)
-        discard;
     float3 color = pow(lum * tex.rgb, 1 / 2.2);
     return float4(color, 1);
 }
@@ -94,21 +92,10 @@ struct CBTransform
 };
 
 void updateCBTransform(
-    int imageIndex,
-    ConstantBuffer<CBTransform> &cb,
-    std::chrono::high_resolution_clock::time_point start,
-    const float aspectRatio)
+    const WalkingCamera &camera,
+    int imageIndex, ConstantBuffer<CBTransform> &cb)
 {
-    const auto duration = std::chrono::high_resolution_clock::now() - start;
-    const float t = std::chrono::duration_cast<
-        std::chrono::microseconds>(duration).count() / 1e6f;
-
-    const Mat4 world = Trans4::rotate_y(t);
-    const Mat4 view  = Trans4::look_at({ -4, 0, 0 }, { 0, 0, 0 }, { 0, 1, 0 });
-    const Mat4 proj  = Trans4::perspective(
-        agz::math::deg2rad(60.0f), aspectRatio, 0.1f, 100.0f);
-
-    cb.updateContentData(imageIndex, { world * view * proj, world });
+    cb.updateContentData(imageIndex, { camera.getViewProj(), Mat4::identity() });
 }
 
 void run()
@@ -247,8 +234,10 @@ void run()
 
     // SRV heap
 
-    DescriptorHeap srvHeap(
-        device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+    DescriptorHeap descHeap;
+    descHeap.initialize(device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+
+    auto srv = *descHeap.allocSingle();
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
     srvDesc.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -260,11 +249,25 @@ void run()
     srvDesc.Texture2D.ResourceMinLODClamp = 0;
 
     device->CreateShaderResourceView(
-        tex.textureResource.Get(), &srvDesc, srvHeap.getCPUHandle(0));
+        tex.textureResource.Get(), &srvDesc, srv.getCPUHandle());
+
+    // camera
+
+    WalkingCamera camera;
+    window.attach(std::make_shared<WindowPostResizeHandler>([&]
+    {
+        camera.setWOverH(window.getImageWOverH());
+    }));
+    camera.setWOverH(window.getImageWOverH());
+    camera.setPosition({ -4, 0, 0 });
+    camera.setLookAt({ 0, 0, 0 });
+    camera.setSpeed(2.5f);
+
+    window.getMouse()->showCursor(false);
+    window.getMouse()->setCursorLock(true, 300, 200);
+    window.doEvents();
 
     // mainloop
-
-    const auto startTime = std::chrono::high_resolution_clock::now();
 
     while(!window.getCloseFlag())
     {
@@ -292,22 +295,41 @@ void run()
         cmdList->ClearDepthStencilView(
             dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
 
+        // camera
+
+        WalkingCamera::UpdateParams cameraUpdateParams;
+
+        cameraUpdateParams.rotateLeft =
+            -0.003f * window.getMouse()->getRelativePositionX();
+        cameraUpdateParams.rotateDown =
+            +0.003f * window.getMouse()->getRelativePositionY();
+
+        cameraUpdateParams.forward  = window.getKeyboard()->isPressed(KEY_W);
+        cameraUpdateParams.backward = window.getKeyboard()->isPressed(KEY_S);
+        cameraUpdateParams.left     = window.getKeyboard()->isPressed(KEY_A);
+        cameraUpdateParams.right    = window.getKeyboard()->isPressed(KEY_D);
+
+        cameraUpdateParams.seperateUpDown = true;
+        cameraUpdateParams.up   = window.getKeyboard()->isPressed(KEY_SPACE);
+        cameraUpdateParams.down = window.getKeyboard()->isPressed(KEY_LSHIFT);
+
+        camera.update(cameraUpdateParams, 0.016f);
+
         // root signature & constant buffer
 
         updateCBTransform(
+            camera,
             window.getCurrentImageIndex(),
-            cbTransform,
-            startTime,
-            window.getImageWOverH());
+            cbTransform);
 
         cmdList->SetGraphicsRootSignature(rootSignature.Get());
         cmdList->SetGraphicsRootConstantBufferView(
             0, cbTransform.getGpuVirtualAddress(window.getCurrentImageIndex()));
 
-        ID3D12DescriptorHeap *rawSRVHeap[] = { srvHeap.getHeap() };
+        ID3D12DescriptorHeap *rawSRVHeap[] = { descHeap.getRawHeap() };
         cmdList->SetDescriptorHeaps(1, rawSRVHeap);
         cmdList->SetGraphicsRootDescriptorTable(
-            1, srvHeap.getGPUHandle(0));
+            1, srv.getGPUHandle());
 
         cmdList->SetPipelineState(pipeline.Get());
 

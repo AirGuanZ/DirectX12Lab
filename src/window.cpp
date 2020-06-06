@@ -66,7 +66,7 @@ struct WindowImplData
     int currentImageIndex_ = 0;
     std::vector<ComPtr<ID3D12Resource>> swapChainBuffers;
 
-    DescriptorHeap RTVHeap;
+    RawDescriptorHeap RTVHeap;
 
     std::unique_ptr<CommandQueueWaiter> cmdQueueWaiter;
 
@@ -251,7 +251,7 @@ void Window::initD3D12(const WindowDesc &desc)
 
     // render target descriptor heap
 
-    impl_->RTVHeap = DescriptorHeap(
+    impl_->RTVHeap = RawDescriptorHeap(
         impl_->device.Get(),
         desc.imageCount,
         D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
@@ -541,10 +541,10 @@ GraphicsPipelineStateBuilder Window::createPipelineBuilder() const
     return GraphicsPipelineStateBuilder(impl_->device.Get());
 }
 
-DescriptorHeap Window::createDescriptorHeap(
+RawDescriptorHeap Window::createDescriptorHeap(
     int size, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible) const
 {
-    return DescriptorHeap(impl_->device.Get(), size, type, shaderVisible);
+    return RawDescriptorHeap(impl_->device.Get(), size, type, shaderVisible);
 }
 
 void Window::_msgClose()

@@ -91,7 +91,7 @@ void DepthStencilBuffer::initialize(
     rsc_ = createDepthStencilBuffer(
         device, width, height, format, expectedClearValue, sampleDesc);
 
-    ownedDSVHeap_ = std::make_unique<DescriptorHeap>(
+    ownedDSVHeap_ = std::make_unique<RawDescriptorHeap>(
         device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false);
     device->CreateDepthStencilView(
         rsc_.Get(), nullptr, ownedDSVHeap_->getCPUHandle(0));

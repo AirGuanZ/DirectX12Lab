@@ -7,21 +7,21 @@
 
 AGZ_D3D12_BEGIN
 
-class DescriptorHeap : public misc::uncopyable_t
+class RawDescriptorHeap : public misc::uncopyable_t
 {
 public:
 
-    DescriptorHeap();
+    RawDescriptorHeap();
 
-    DescriptorHeap(
+    RawDescriptorHeap(
         ID3D12Device              *device,
         int                        size,
         D3D12_DESCRIPTOR_HEAP_TYPE type,
         bool                       shaderVisible);
 
-    DescriptorHeap(DescriptorHeap &&other) noexcept;
+    RawDescriptorHeap(RawDescriptorHeap &&other) noexcept;
 
-    DescriptorHeap &operator=(DescriptorHeap &&other) noexcept;
+    RawDescriptorHeap &operator=(RawDescriptorHeap &&other) noexcept;
 
     bool isAvailable() const noexcept;
 
@@ -33,7 +33,7 @@ public:
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE getGPUHandle(int index) const noexcept;
 
-    void swap(DescriptorHeap &other) noexcept;
+    void swap(RawDescriptorHeap &other) noexcept;
 
 private:
 
@@ -43,13 +43,13 @@ private:
     CD3DX12_GPU_DESCRIPTOR_HANDLE gpuStart_;
 };
 
-inline DescriptorHeap::DescriptorHeap()
+inline RawDescriptorHeap::RawDescriptorHeap()
     : descIncSize_(0), cpuStart_{}, gpuStart_{}
 {
 
 }
 
-inline DescriptorHeap::DescriptorHeap(
+inline RawDescriptorHeap::RawDescriptorHeap(
     ID3D12Device              *device,
     int                        size,
     D3D12_DESCRIPTOR_HEAP_TYPE type,
@@ -72,18 +72,23 @@ inline DescriptorHeap::DescriptorHeap(
     cpuStart_ = CD3DX12_CPU_DESCRIPTOR_HANDLE(
         heap_->GetCPUDescriptorHandleForHeapStart());
 
-    gpuStart_ = CD3DX12_GPU_DESCRIPTOR_HANDLE(
-        heap_->GetGPUDescriptorHandleForHeapStart());
+    if(shaderVisible)
+    {
+        gpuStart_ = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+            heap_->GetGPUDescriptorHandleForHeapStart());
+    }
+    else
+        gpuStart_.ptr = 0;
 }
 
-inline DescriptorHeap::DescriptorHeap(DescriptorHeap &&other) noexcept
+inline RawDescriptorHeap::RawDescriptorHeap(RawDescriptorHeap &&other) noexcept
     : descIncSize_(0), cpuStart_{}, gpuStart_{}
 {
     swap(other);
 }
 
-inline DescriptorHeap &DescriptorHeap::operator=(
-    DescriptorHeap &&other) noexcept
+inline RawDescriptorHeap &RawDescriptorHeap::operator=(
+    RawDescriptorHeap &&other) noexcept
 {
     heap_.Reset();
     descIncSize_  = 0;
@@ -93,36 +98,38 @@ inline DescriptorHeap &DescriptorHeap::operator=(
     return *this;
 }
 
-inline bool DescriptorHeap::isAvailable() const noexcept
+inline bool RawDescriptorHeap::isAvailable() const noexcept
 {
     return heap_ != nullptr;
 }
 
-inline ID3D12DescriptorHeap *DescriptorHeap::getHeap() const noexcept
+inline ID3D12DescriptorHeap *RawDescriptorHeap::getHeap() const noexcept
 {
     return heap_.Get();
 }
 
-inline UINT DescriptorHeap::getDescIncSize() const noexcept
+inline UINT RawDescriptorHeap::getDescIncSize() const noexcept
 {
     return descIncSize_;
 }
 
-inline CD3DX12_CPU_DESCRIPTOR_HANDLE DescriptorHeap::getCPUHandle(
+inline CD3DX12_CPU_DESCRIPTOR_HANDLE RawDescriptorHeap::getCPUHandle(
     int index) const noexcept
 {
     auto ret = cpuStart_;
     return ret.Offset(index, descIncSize_);
 }
 
-inline CD3DX12_GPU_DESCRIPTOR_HANDLE DescriptorHeap::getGPUHandle(
+inline CD3DX12_GPU_DESCRIPTOR_HANDLE RawDescriptorHeap::getGPUHandle(
     int index) const noexcept
 {
+    if(!gpuStart_.ptr)
+        return CD3DX12_GPU_DESCRIPTOR_HANDLE(D3D12_DEFAULT);
     auto ret = gpuStart_;
     return ret.Offset(index, descIncSize_);
 }
 
-inline void DescriptorHeap::swap(DescriptorHeap &other) noexcept
+inline void RawDescriptorHeap::swap(RawDescriptorHeap &other) noexcept
 {
     std::swap(heap_,        other.heap_);
     std::swap(descIncSize_, other.descIncSize_);

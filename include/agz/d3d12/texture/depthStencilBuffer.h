@@ -2,7 +2,7 @@
 
 #include <d3d12.h>
 
-#include <agz/d3d12/pipeline/descriptorHeap.h>
+#include <agz/d3d12/descriptor/rawDescriptorHeap.h>
 
 AGZ_D3D12_BEGIN
 
@@ -18,7 +18,7 @@ class DepthStencilBuffer
 {
     ComPtr<ID3D12Resource> rsc_;
 
-    std::unique_ptr<DescriptorHeap> ownedDSVHeap_;
+    std::unique_ptr<RawDescriptorHeap> ownedDSVHeap_;
 
     D3D12_CPU_DESCRIPTOR_HANDLE customedDSVHandle_;
 

@@ -62,12 +62,13 @@ inline bool GraphicsCommandList::isAvailable() const noexcept
 
 inline void GraphicsCommandList::destroy()
 {
-    cmdList_.Reset();
     alloc_.Reset();
+    cmdList_.Reset();
 }
 
 inline void GraphicsCommandList::resetCommandList()
 {
+    alloc_->Reset();
     cmdList_->Reset(alloc_.Get(), nullptr);
 }
 
