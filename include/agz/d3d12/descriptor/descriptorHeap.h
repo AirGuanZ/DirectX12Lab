@@ -11,8 +11,6 @@ using DescriptorIndex = uint32_t;
 
 using DescriptorCount = std::make_unsigned_t<DescriptorIndex>;
 
-class DescriptorHeapManager;
-
 class Descriptor
 {
     D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_;
@@ -29,6 +27,10 @@ public:
     D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const noexcept;
 
     D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle() const noexcept;
+
+    operator D3D12_CPU_DESCRIPTOR_HANDLE() const noexcept;
+
+    operator D3D12_GPU_DESCRIPTOR_HANDLE() const noexcept;
 };
 
 class DescriptorRange
@@ -135,6 +137,9 @@ public:
     using DescriptorSubHeap::freeSubHeap;
     using DescriptorSubHeap::freeRange;
     using DescriptorSubHeap::freeSingle;
+
+    DescriptorSubHeap       &getRootSubheap() noexcept;
+    const DescriptorSubHeap &getRootSubheap() const noexcept;
 };
 
 inline Descriptor::Descriptor() noexcept
@@ -159,6 +164,16 @@ inline D3D12_CPU_DESCRIPTOR_HANDLE Descriptor::getCPUHandle() const noexcept
 inline D3D12_GPU_DESCRIPTOR_HANDLE Descriptor::getGPUHandle() const noexcept
 {
     return gpuHandle_;
+}
+
+inline Descriptor::operator struct D3D12_CPU_DESCRIPTOR_HANDLE() const noexcept
+{
+    return getCPUHandle();
+}
+
+inline Descriptor::operator struct D3D12_GPU_DESCRIPTOR_HANDLE() const noexcept
+{
+    return getGPUHandle();
 }
 
 inline DescriptorRange::DescriptorRange() noexcept
@@ -348,6 +363,16 @@ inline void DescriptorHeap::destroy()
 inline ID3D12DescriptorHeap *DescriptorHeap::getRawHeap() const noexcept
 {
     return rawHeap_.getHeap();
+}
+
+inline DescriptorSubHeap &DescriptorHeap::getRootSubheap() noexcept
+{
+    return static_cast<DescriptorSubHeap &>(*this);
+}
+
+inline const DescriptorSubHeap &DescriptorHeap::getRootSubheap() const noexcept
+{
+    return static_cast<const DescriptorSubHeap &>(*this);
 }
 
 AGZ_D3D12_END

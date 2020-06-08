@@ -31,7 +31,7 @@ ComPtr<ID3D12Resource> createDepthStencilBuffer(
     ComPtr<ID3D12Resource> ret;
     AGZ_D3D12_CHECK_HR(device->CreateCommittedResource(
         &heapProps, D3D12_HEAP_FLAG_NONE, &rscDesc,
-        D3D12_RESOURCE_STATE_COMMON, &clearValue,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue,
         IID_PPV_ARGS(ret.GetAddressOf())));
 
     return ret;
@@ -88,6 +88,8 @@ void DepthStencilBuffer::initialize(
     D3D12_DEPTH_STENCIL_VALUE expectedClearValue,
     const DXGI_SAMPLE_DESC   &sampleDesc)
 {
+    destroy();
+
     rsc_ = createDepthStencilBuffer(
         device, width, height, format, expectedClearValue, sampleDesc);
 

@@ -2,7 +2,7 @@
 
 #include <d3dx12.h>
 
-#include <agz/d3d12/D3D12Lab.h>
+#include <agz/d3d12/lab.h>
 #include <agz/utility/mesh.h>
 #include <agz/utility/image.h>
 
@@ -196,11 +196,6 @@ void run()
             DXGI_FORMAT_D24_UNORM_S8_UINT);
 
         uploadCmdList.resetCommandList();
-        const auto depthStencilBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            depthStencilBuffer.getResource(),
-            D3D12_RESOURCE_STATE_COMMON,
-            D3D12_RESOURCE_STATE_DEPTH_WRITE);
-        uploadCmdList->ResourceBarrier(1, &depthStencilBarrier);
         uploadCmdList->Close();
 
         window.executeOneCmdList(uploadCmdList.getCmdList());
@@ -223,14 +218,15 @@ void run()
         throw std::runtime_error("failed to load texture data from file");
 
     uploadCmdList.resetCommandList();
-    auto tex = loadTexture2DFromMemory(
-        device, uploadCmdList.getCmdList(), texData);
+    
+    Texture2D tex;
+    auto uploadTex = tex.initializeShaderResource(
+        device, texData.width(), texData.height(), DXGI_FORMAT_R8G8B8A8_UNORM,
+        { uploadCmdList.getCmdList(), texData.raw_data() });
 
     uploadCmdList->Close();
     window.executeOneCmdList(uploadCmdList.getCmdList());
     window.waitCommandQueueIdle();
-
-    tex.uploadResource.Reset();
 
     // SRV heap
 
@@ -238,18 +234,7 @@ void run()
     descHeap.initialize(device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     auto srv = *descHeap.allocSingle();
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-    srvDesc.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
-    srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Texture2D.MipLevels           = 1;
-    srvDesc.Texture2D.MostDetailedMip     = 0;
-    srvDesc.Texture2D.PlaneSlice          = 0;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0;
-
-    device->CreateShaderResourceView(
-        tex.textureResource.Get(), &srvDesc, srv.getCPUHandle());
+    tex.createShaderResourceView(srv);
 
     // camera
 
@@ -280,7 +265,7 @@ void run()
         // prepare render target & depth stencil buffer
 
         const auto barrier1 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(cmdList.getFrameIndex()),
+            window.getCurrentImage(),
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_RENDER_TARGET);
         cmdList->ResourceBarrier(1, &barrier1);
@@ -352,7 +337,7 @@ void run()
         // render target state transition
 
         const auto barrier2 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(cmdList.getFrameIndex()),
+            window.getCurrentImage(),
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             D3D12_RESOURCE_STATE_PRESENT);
         cmdList->ResourceBarrier(1, &barrier2);

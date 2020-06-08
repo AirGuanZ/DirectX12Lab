@@ -2,7 +2,7 @@
 
 #include <d3dx12.h>
 
-#include <agz/d3d12/D3D12Lab.h>
+#include <agz/d3d12/lab.h>
 
 using namespace agz::d3d12;
 
@@ -148,7 +148,7 @@ void run()
         // record command list
 
         const auto barrier1 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(cmdList.getFrameIndex()),
+            window.getCurrentImage(),
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_RENDER_TARGET);
         cmdList->ResourceBarrier(1, &barrier1);
@@ -173,7 +173,7 @@ void run()
         cmdList->DrawInstanced(3, 1, 0, 0);
 
         const auto barrier2 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(cmdList.getFrameIndex()),
+            window.getCurrentImage(),
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             D3D12_RESOURCE_STATE_PRESENT);
         cmdList->ResourceBarrier(1, &barrier2);

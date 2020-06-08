@@ -53,8 +53,7 @@ struct WindowImplData
 
     bool vsync = true;
 
-    DXGI_FORMAT backbufferFormat   = DXGI_FORMAT_UNKNOWN;
-    DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_UNKNOWN;
+    DXGI_FORMAT backbufferFormat = DXGI_FORMAT_UNKNOWN;
 
     ComPtr<ID3D12Device>       device;
     ComPtr<ID3D12CommandQueue> cmdQueue;
@@ -425,9 +424,9 @@ int Window::getCurrentImageIndex() const
     return static_cast<int>(impl_->currentImageIndex_);
 }
 
-ID3D12Resource *Window::getCurrentImage(int index) const noexcept
+ID3D12Resource *Window::getCurrentImage() const noexcept
 {
-    return impl_->swapChainBuffers[index].Get();
+    return impl_->swapChainBuffers[impl_->currentImageIndex_].Get();
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Window::getCurrentImageDescHandle() const noexcept
@@ -464,6 +463,11 @@ float Window::getImageWOverH() const noexcept
     return float(getImageWidth()) / getImageHeight();
 }
 
+DXGI_FORMAT Window::getImageFormat() const noexcept
+{
+    return impl_->backbufferFormat;
+}
+
 const D3D12_VIEWPORT &Window::getDefaultViewport() const noexcept
 {
     return impl_->fullwindowViewport;
@@ -474,22 +478,22 @@ const D3D12_RECT &Window::getDefaultScissorRect() const noexcept
     return impl_->fullwindowRect;
 }
 
-ID3D12Device *Window::getDevice()
+ID3D12Device *Window::getDevice() const noexcept
 {
     return impl_->device.Get();
 }
 
-ID3D12CommandQueue *Window::getCommandQueue()
+ID3D12CommandQueue *Window::getCommandQueue() const noexcept
 {
     return impl_->cmdQueue.Get();
 }
 
-void Window::executeOneCmdList(ID3D12CommandList *cmdList)
+void Window::executeOneCmdList(ID3D12CommandList *cmdList) const noexcept
 {
     impl_->cmdQueue->ExecuteCommandLists(1, &cmdList);
 }
 
-void Window::waitCommandQueueIdle()
+void Window::waitCommandQueueIdle() const
 {
     impl_->cmdQueueWaiter->waitIdle(impl_->cmdQueue.Get());
 }

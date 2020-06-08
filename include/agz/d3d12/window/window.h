@@ -73,7 +73,7 @@ public:
 
     int getCurrentImageIndex() const;
 
-    ID3D12Resource *getCurrentImage(int index) const noexcept;
+    ID3D12Resource *getCurrentImage() const noexcept;
 
     D3D12_CPU_DESCRIPTOR_HANDLE getCurrentImageDescHandle() const noexcept;
 
@@ -87,19 +87,21 @@ public:
 
     float getImageWOverH() const noexcept;
 
+    DXGI_FORMAT getImageFormat() const noexcept;
+
     const D3D12_VIEWPORT &getDefaultViewport() const noexcept;
 
     const D3D12_RECT &getDefaultScissorRect() const noexcept;
 
     // d3d12 device/queue
 
-    ID3D12Device *getDevice();
+    ID3D12Device *getDevice() const noexcept;
 
-    ID3D12CommandQueue *getCommandQueue();
+    ID3D12CommandQueue *getCommandQueue() const noexcept;
 
-    void executeOneCmdList(ID3D12CommandList *cmdList);
+    void executeOneCmdList(ID3D12CommandList *cmdList) const noexcept;
 
-    void waitCommandQueueIdle();
+    void waitCommandQueueIdle() const;
 
     // fast create
 

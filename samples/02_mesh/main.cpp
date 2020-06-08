@@ -2,7 +2,7 @@
 
 #include <d3dx12.h>
 
-#include <agz/d3d12/D3D12Lab.h>
+#include <agz/d3d12/lab.h>
 #include <agz/utility/mesh.h>
 
 using namespace agz::d3d12;
@@ -239,7 +239,7 @@ void run()
         // prepare render target & depth stencil buffer
 
         const auto barrier1 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(cmdList.getFrameIndex()),
+            window.getCurrentImage(),
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_RENDER_TARGET);
         cmdList->ResourceBarrier(1, &barrier1);
@@ -286,7 +286,7 @@ void run()
         // render target state transition
 
         const auto barrier2 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(cmdList.getFrameIndex()),
+            window.getCurrentImage(),
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             D3D12_RESOURCE_STATE_PRESENT);
         cmdList->ResourceBarrier(1, &barrier2);

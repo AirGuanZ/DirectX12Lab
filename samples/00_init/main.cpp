@@ -38,7 +38,7 @@ void run()
         // record command list
 
         const auto barrier1 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(cmdList.getFrameIndex()),
+            window.getCurrentImage(),
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_RENDER_TARGET);
         cmdList->ResourceBarrier(1, &barrier1);
@@ -50,7 +50,7 @@ void run()
         cmdList->ClearRenderTargetView(rtvHandle, CLEAR_COLOR, 0, nullptr);
 
         const auto barrier2 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(cmdList.getFrameIndex()),
+            window.getCurrentImage(),
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             D3D12_RESOURCE_STATE_PRESENT);
         cmdList->ResourceBarrier(1, &barrier2);

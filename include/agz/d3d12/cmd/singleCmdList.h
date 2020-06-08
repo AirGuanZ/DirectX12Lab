@@ -28,6 +28,8 @@ public:
     ID3D12GraphicsCommandList *getCmdList() noexcept;
 
     ID3D12CommandAllocator *getAlloc() noexcept;
+
+    operator ID3D12GraphicsCommandList *() noexcept;
 };
 
 inline GraphicsCommandList::GraphicsCommandList(ID3D12Device *device)
@@ -85,6 +87,11 @@ inline ID3D12GraphicsCommandList *GraphicsCommandList::getCmdList() noexcept
 inline ID3D12CommandAllocator *GraphicsCommandList::getAlloc() noexcept
 {
     return alloc_.Get();
+}
+
+inline GraphicsCommandList::operator struct ID3D12GraphicsCommandList*() noexcept
+{
+    return cmdList_.Get();
 }
 
 AGZ_D3D12_END
