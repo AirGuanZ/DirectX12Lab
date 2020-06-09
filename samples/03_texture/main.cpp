@@ -221,8 +221,9 @@ void run()
     
     Texture2D tex;
     auto uploadTex = tex.initializeShaderResource(
-        device, texData.width(), texData.height(), DXGI_FORMAT_R8G8B8A8_UNORM,
-        { uploadCmdList.getCmdList(), texData.raw_data() });
+        device, uploadCmdList.getCmdList(),
+        texData.width(), texData.height(), DXGI_FORMAT_R8G8B8A8_UNORM,
+        { texData.raw_data() });
 
     uploadCmdList->Close();
     window.executeOneCmdList(uploadCmdList.getCmdList());
@@ -362,10 +363,6 @@ int main()
     try
     {
         run();
-    }
-    catch(const D3D12LabException &e)
-    {
-        MessageBoxA(nullptr, e.what(), "Error", MB_OK);
     }
     catch(const std::exception &e)
     {

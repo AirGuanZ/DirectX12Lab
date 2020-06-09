@@ -29,9 +29,11 @@ public:
 
     void resetCommandList();
 
-    ID3D12GraphicsCommandList *getCmdList();
+    ID3D12GraphicsCommandList *getCmdList() noexcept;
 
-    ID3D12GraphicsCommandList *operator->() const noexcept;
+    operator ID3D12GraphicsCommandList *() noexcept;
+
+    ID3D12GraphicsCommandList *operator->() noexcept;
 
     int getFrameIndex() const noexcept;
 };
@@ -95,12 +97,17 @@ inline void PerFrameCommandList::resetCommandList()
     cmdList_->Reset(cmdAllocators_[curFrameIndex_].Get(), nullptr);
 }
 
-inline ID3D12GraphicsCommandList *PerFrameCommandList::getCmdList()
+inline ID3D12GraphicsCommandList *PerFrameCommandList::getCmdList() noexcept
 {
     return cmdList_.Get();
 }
 
-inline ID3D12GraphicsCommandList *PerFrameCommandList::operator->() const noexcept
+inline PerFrameCommandList::operator struct ID3D12GraphicsCommandList*() noexcept
+{
+    return cmdList_.Get();
+}
+
+inline ID3D12GraphicsCommandList *PerFrameCommandList::operator->() noexcept
 {
     return cmdList_.Get();
 }

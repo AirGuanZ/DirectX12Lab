@@ -47,3 +47,9 @@ Render a triangle mesh.
 
 ![pic](./screenshots/04_deferred.png)
 
+## 05.mipmap & msaa
+
+* Mipmap generation and using
+* Render target with MSAA
+
+![pic](./screenshots/05_mipmap&msaa.png)

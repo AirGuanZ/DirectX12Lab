@@ -511,9 +511,9 @@ namespace
             auto isNextLinear = [&]
             {
                 if(toks.matchName("linear"))
-                    return false;
-                if(toks.matchName("nearest"))
                     return true;
+                if(toks.matchName("nearest"))
+                    return false;
                 toks.err("'linear'/'nearest' expected");
             };
 

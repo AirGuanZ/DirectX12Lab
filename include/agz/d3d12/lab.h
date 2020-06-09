@@ -20,6 +20,7 @@
 #include <agz/d3d12/sync/cmdQueueWaiter.h>
 
 #include <agz/d3d12/texture/depthStencilBuffer.h>
+#include <agz/d3d12/texture/mipmap.h>
 #include <agz/d3d12/texture/texture2d.h>
 
 #include <agz/d3d12/window/debugLayer.h>

@@ -199,10 +199,6 @@ int main()
     {
         run();
     }
-    catch(const D3D12LabException &e)
-    {
-        MessageBoxA(nullptr, e.what(), "Error", MB_OK);
-    }
     catch(const std::exception &e)
     {
         std::cerr << e.what() << std::endl;

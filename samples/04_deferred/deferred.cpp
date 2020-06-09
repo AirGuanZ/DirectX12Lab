@@ -149,8 +149,8 @@ std::vector<ComPtr<ID3D12Resource>> Mesh::loadFromFile(
     }
 
     ret.push_back(albedo_.initializeShaderResource(
-        window.getDevice(), imgData.width(), imgData.height(),
-        DXGI_FORMAT_R8G8B8A8_UNORM, { copyCmdList, imgData.raw_data() }));
+        window.getDevice(), copyCmdList, imgData.width(), imgData.height(),
+        DXGI_FORMAT_R8G8B8A8_UNORM, { imgData.raw_data() }));
 
     albedo_.createShaderResourceView(albedoDescTable_[0]);
 
@@ -258,7 +258,10 @@ DeferredRenderer::DeferredRenderer(
         .setRootSignature(gBufferRootSignature_.Get())
         .setVertexShader(compiler.compileShader(GBUFFER_VERTEX_SHADER, "vs_5_0"))
         .setPixelShader(compiler.compileShader(GBUFFER_PIXEL_SHADER, "ps_5_0"))
-        .setRenderTargetFormats({ DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM })
+        .setRenderTargetFormats({
+            DXGI_FORMAT_R32G32B32A32_FLOAT,
+            DXGI_FORMAT_R32G32B32A32_FLOAT,
+            DXGI_FORMAT_R8G8B8A8_UNORM })
         .setInputElements(inputElements)
         .setDepthStencilBufferFormat(DXGI_FORMAT_D24_UNORM_S8_UINT)
         .setDepthStencilTestState(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT))
