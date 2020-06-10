@@ -56,7 +56,7 @@ namespace
         StaticSampler -> s Integer s Integer (, ShaderVisibility)? : { (StaticSamplerArgument;)* }
         
         StaticSamplerArgument -> filter : anisotropic
-        StaticSamplerArgument -> filter : xxx, xxx, xxx (xxx = nearest/linear)
+        StaticSamplerArgument -> filter : xxx, xxx, xxx (xxx = nearest/linear/point)
         StaticSamplerArgument -> address : xxx, xxx, xxx (xxx = clamp/wrap/mirror)
         StaticSamplerArgument -> mipLODBias : Float
         StaticSamplerArgument -> maxAnisotropy : Integer
@@ -512,9 +512,9 @@ namespace
             {
                 if(toks.matchName("linear"))
                     return true;
-                if(toks.matchName("nearest"))
+                if(toks.matchName("nearest") || toks.matchName("point"))
                     return false;
-                toks.err("'linear'/'nearest' expected");
+                toks.err("'linear'/'nearest'/'point' expected");
             };
 
             const bool minLinear = isNextLinear();

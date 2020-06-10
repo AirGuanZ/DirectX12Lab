@@ -201,6 +201,15 @@ void Texture2D::createDepthStencilView(
         rsc_.Get(), nullptr, dsvHandle);
 }
 
+std::pair<int, int> Texture2D::getMultisample() const noexcept
+{
+    const auto desc = rsc_->GetDesc();
+    return {
+        static_cast<int>(desc.SampleDesc.Count),
+        static_cast<int>(desc.SampleDesc.Quality)
+    };
+}
+
 template<typename RTDSInfo>
 ComPtr<ID3D12Resource> Texture2D::initialize(
     ID3D12Device                 *device,

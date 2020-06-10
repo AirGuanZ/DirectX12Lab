@@ -37,8 +37,6 @@ struct WindowDesc
     DWORD getStyle() const noexcept;
 };
 
-struct WindowImplData;
-
 class Window
 {
 public:
@@ -46,6 +44,10 @@ public:
     explicit Window(const WindowDesc &desc);
 
     ~Window();
+
+    // win32 object
+
+    HWND getWindowHandle() const noexcept;
 
     // win32 events
 
@@ -154,6 +156,8 @@ public:
     void _msgResize();
 
 private:
+
+    struct WindowImplData;
 
     void initWin32Window(const WindowDesc &desc);
 

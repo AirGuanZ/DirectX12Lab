@@ -125,48 +125,6 @@ void run()
     auto texSRV = *rscHeap.allocSingle();
     tex.createShaderResourceView(texSRV);
 
-    // pipeline
-
-    auto rootSignature = createRootSignature(
-        device,
-        R"___(
-            inputAssembly;
-            s0b0, vertex : CBV;
-                  pixel  : { s0t0 : SRV; };
-            s0s0, pixel  : { filter : linear, linear, linear; };
-        )___");
-
-    D3D12_INPUT_ELEMENT_DESC inputDescs[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, pos),
-          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, uv),
-          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-    };
-
-    ShaderCompiler compiler;
-    compiler
-        .setOptLevel(ShaderCompiler::OptLevel::Debug)
-        .setWarnings(true);
-
-    auto pipeline = window.createPipelineBuilder()
-        .setRootSignature(rootSignature)
-        .setVertexShader(compiler.compileShader(VERTEX_SHADER, "vs_5_0"))
-        .setPixelShader(compiler.compileShader(PIXEL_SHADER, "ps_5_0"))
-        .setRenderTargetFormats({ windowDesc.backbufferFormat })
-        .setMultisample(4, 0)
-        .setInputElements(inputDescs)
-        .createPipelineState();
-
-    // data upload
-
-    uploadCmdList->Close();
-    window.executeOneCmdList(uploadCmdList);
-    window.waitCommandQueueIdle();
-
-    vertexUploader.Reset();
-    texUploader.Reset();
-
     // msaa render target
 
     Texture2D msaaRT;
@@ -186,6 +144,50 @@ void run()
     };
 
     initMSAART();
+
+    // pipeline
+
+    auto rootSignature = createRootSignature(
+        device,
+        R"___(
+            inputAssembly;
+            s0b0, vertex : CBV;
+                  pixel  : { s0t0 : SRV; };
+            s0s0, pixel  : { filter : linear, linear, linear; };
+        )___");
+
+    D3D12_INPUT_ELEMENT_DESC inputDescs[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, pos),
+          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, uv),
+          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+
+    const auto msaaSampleDesc = msaaRT.getMultisample();
+
+    ShaderCompiler compiler;
+    compiler
+        .setOptLevel(ShaderCompiler::OptLevel::Debug)
+        .setWarnings(true);
+
+    auto pipeline = window.createPipelineBuilder()
+        .setRootSignature(rootSignature)
+        .setVertexShader(compiler.compileShader(VERTEX_SHADER, "vs_5_0"))
+        .setPixelShader(compiler.compileShader(PIXEL_SHADER, "ps_5_0"))
+        .setRenderTargetFormats({ windowDesc.backbufferFormat })
+        .setMultisample(msaaSampleDesc.first, msaaSampleDesc.second)
+        .setInputElements(inputDescs)
+        .createPipelineState();
+
+    // data upload
+
+    uploadCmdList->Close();
+    window.executeOneCmdList(uploadCmdList);
+    window.waitCommandQueueIdle();
+
+    vertexUploader.Reset();
+    texUploader.Reset();
 
     // camera
 

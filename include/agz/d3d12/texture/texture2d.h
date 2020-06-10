@@ -120,6 +120,8 @@ public:
 
     void createDepthStencilView(D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle) const;
 
+    std::pair<int, int> getMultisample() const noexcept;
+
 private:
 
     struct NoRTDSInfo { };

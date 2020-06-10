@@ -30,7 +30,7 @@ namespace impl
 
 } // namespace  impl
 
-struct WindowImplData
+struct Window::WindowImplData
 {
     bool exiting = false;
 
@@ -344,6 +344,11 @@ Window::~Window()
     }
 
     UnregisterClassW(impl_->className.c_str(), impl_->hInstance);
+}
+
+HWND Window::getWindowHandle() const noexcept
+{
+    return impl_->hWindow;
 }
 
 void Window::doEvents()

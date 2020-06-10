@@ -53,3 +53,20 @@ Render a triangle mesh.
 * Render target with MSAA
 
 ![pic](./screenshots/05_mipmap&msaa.png)
+
+* Reference
+
+  [avir](https://github.com/avaneev/avir)
+
+## 06.imgui
+
+* Dear-ImGui integration
+
+![pic](./screenshots/06_imgui.png)
+
+* Reference
+
+  [Dear-ImGui](https://github.com/ocornut/imgui)
+  
+  [ImGui-Filebrowser](https://github.com/AirGuanZ/imgui-filebrowser)
+
