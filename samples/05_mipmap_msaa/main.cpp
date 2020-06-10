@@ -111,16 +111,16 @@ void run()
         throw std::runtime_error("failed to load texture from image file");
     const auto mipmapChain = constructMipmapChain(std::move(texData), -1);
 
-    std::vector<Texture2D::ShaderResourceInitData> texInitData;
+    std::vector<Texture2D::SubresourceInitData> texInitData;
     for(auto &m : mipmapChain)
         texInitData.push_back({ m.raw_data() });
 
     Texture2D tex;
     auto texUploader = tex.initializeShaderResource(
-        device, uploadCmdList,
+        device, DXGI_FORMAT_R8G8B8A8_UNORM,
         mipmapChain[0].width(), mipmapChain[0].height(),
-        1, int(mipmapChain.size()),
-        DXGI_FORMAT_R8G8B8A8_UNORM, texInitData.data());
+        1, int(mipmapChain.size()), false, false,
+        { uploadCmdList, texInitData.data() });
 
     auto texSRV = *rscHeap.allocSingle();
     tex.createShaderResourceView(texSRV);
@@ -135,10 +135,10 @@ void run()
     {
         msaaRT.initializeRenderTarget(
             device,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
             window.getImageWidth(),
             window.getImageHeight(),
-            DXGI_FORMAT_R8G8B8A8_UNORM,
-            { { 0, 0, 0, 0 }, 4, 0 });
+            4, 0, { 0, 0, 0, 0 });
 
         msaaRT.createRenderTargetView(msaaRTVHeap.getCPUHandle(0));
     };

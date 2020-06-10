@@ -9,7 +9,7 @@
 
 AGZ_D3D12_BEGIN
 
-class ImGuiIntegration
+class ImGuiIntegration : public misc::uncopyable_t
 {
 public:
 

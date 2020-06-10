@@ -149,8 +149,9 @@ std::vector<ComPtr<ID3D12Resource>> Mesh::loadFromFile(
     }
 
     ret.push_back(albedo_.initializeShaderResource(
-        window.getDevice(), copyCmdList, imgData.width(), imgData.height(),
-        DXGI_FORMAT_R8G8B8A8_UNORM, { imgData.raw_data() }));
+        window.getDevice(), DXGI_FORMAT_R8G8B8A8_UNORM,
+        imgData.width(), imgData.height(),
+        copyCmdList, { imgData.raw_data() }));
 
     albedo_.createShaderResourceView(albedoDescTable_[0]);
 
@@ -384,11 +385,11 @@ void DeferredRenderer::createGBuffers()
     const int height = window_.getImageHeight();
 
     gBufferPosition_.initializeRenderTarget(
-        device, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, { { 0, 0, 0, 0 } });
+        device, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, 1, 0, { 0, 0, 0, 0 });
     gBufferNormal_.initializeRenderTarget(
-        device, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, { { 0, 0, 0, 0 } });
+        device, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, 1, 0, { 0, 0, 0, 0 });
     gBufferColor_.initializeRenderTarget(
-        device, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, { { 0, 0, 0, 0 } });
+        device, DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 0, { 0, 0, 0, 0 });
 
     gBufferPosition_.createRenderTargetView(gBufferRTVHeap_.getCPUHandle(0));
     gBufferNormal_.createRenderTargetView(gBufferRTVHeap_.getCPUHandle(1));

@@ -221,9 +221,9 @@ void run()
     
     Texture2D tex;
     auto uploadTex = tex.initializeShaderResource(
-        device, uploadCmdList.getCmdList(),
-        texData.width(), texData.height(), DXGI_FORMAT_R8G8B8A8_UNORM,
-        { texData.raw_data() });
+        device, DXGI_FORMAT_R8G8B8A8_UNORM,
+        texData.width(), texData.height(),
+        uploadCmdList, { texData.raw_data() });
 
     uploadCmdList->Close();
     window.executeOneCmdList(uploadCmdList.getCmdList());

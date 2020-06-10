@@ -24,9 +24,9 @@ public:
         D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
         D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle) noexcept;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE getCPUHandle() const noexcept;
+    const D3D12_CPU_DESCRIPTOR_HANDLE &getCPUHandle() const noexcept;
 
-    D3D12_GPU_DESCRIPTOR_HANDLE getGPUHandle() const noexcept;
+    const D3D12_GPU_DESCRIPTOR_HANDLE &getGPUHandle() const noexcept;
 
     operator D3D12_CPU_DESCRIPTOR_HANDLE() const noexcept;
 
@@ -156,12 +156,12 @@ inline Descriptor::Descriptor(
     
 }
 
-inline D3D12_CPU_DESCRIPTOR_HANDLE Descriptor::getCPUHandle() const noexcept
+inline const D3D12_CPU_DESCRIPTOR_HANDLE &Descriptor::getCPUHandle() const noexcept
 {
     return cpuHandle_;
 }
 
-inline D3D12_GPU_DESCRIPTOR_HANDLE Descriptor::getGPUHandle() const noexcept
+inline const D3D12_GPU_DESCRIPTOR_HANDLE &Descriptor::getGPUHandle() const noexcept
 {
     return gpuHandle_;
 }

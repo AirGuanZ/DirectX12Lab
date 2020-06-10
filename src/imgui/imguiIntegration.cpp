@@ -97,7 +97,9 @@ ImGuiIntegration::ImGuiIntegration(
 
 ImGuiIntegration::~ImGuiIntegration()
 {
-    
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext(ImGui::GetCurrentContext());
 }
 
 void ImGuiIntegration::newFrame()

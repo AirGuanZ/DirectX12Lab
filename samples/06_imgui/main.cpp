@@ -3,6 +3,7 @@
 #include <agz/d3d12/imgui/imgui.h>
 #include <agz/d3d12/imgui/imfilebrowser.h>
 #include <agz/d3d12/lab.h>
+#include <agz/utility/image.h>
 
 using namespace agz::d3d12;
 
@@ -26,6 +27,28 @@ void run()
     ImGuiIntegration imgui(
         window, rscHeap.getRawHeap(), imguiSRV, imguiSRV);
 
+    GraphicsCommandList copyCmdList(device);
+    Texture2D tex;
+
+    const auto texData = agz::texture::texture2d_t<agz::math::color4b>(
+        agz::img::load_rgba_from_file("./asset/05_mipmap.png"));
+    if(!texData.is_available())
+        throw std::runtime_error("failed to load image");
+
+    copyCmdList.resetCommandList();
+    auto uploadTex = tex.initializeShaderResource(
+        device, DXGI_FORMAT_R8G8B8A8_UNORM, texData.width(), texData.height(),
+        copyCmdList, { texData.raw_data() });
+
+    copyCmdList->Close();
+    window.executeOneCmdList(copyCmdList);
+    window.waitCommandQueueIdle();
+
+    uploadTex.Reset();
+
+    auto texSRV = *rscHeap.allocSingle();
+    tex.createShaderResourceView(texSRV);
+
     ImGui::FileBrowser fileBrowser;
     fileBrowser.SetTitle("hello, imgui!");
     fileBrowser.SetWindowSize(600, 400);
@@ -43,21 +66,6 @@ void run()
         if(window.getKeyboard()->isPressed(KEY_ESCAPE))
             window.setCloseFlag(true);
 
-        const auto barrier1 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(),
-            D3D12_RESOURCE_STATE_PRESENT,
-            D3D12_RESOURCE_STATE_RENDER_TARGET);
-        cmdList->ResourceBarrier(1, &barrier1);
-
-        auto rtvHandle = window.getCurrentImageDescHandle();
-        cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-
-        const float CLEAR_COLOR[] = { 0, 1, 1, 0 };
-        cmdList->ClearRenderTargetView(rtvHandle, CLEAR_COLOR, 0, nullptr);
-
-        ID3D12DescriptorHeap *rawDescHeap[] = { rscHeap.getRawHeap() };
-        cmdList->SetDescriptorHeaps(1, rawDescHeap);
-
         if(ImGui::Begin("imgui", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
             if(ImGui::Button("exit"))
@@ -67,6 +75,10 @@ void run()
 
             if(ImGui::Button("open file browser"))
                 fileBrowser.Open();
+
+            ImGui::Image(
+                ImTextureID(texSRV.getGPUHandle().ptr),
+                { float(texData.width()), float(texData.height()) });
         }
         ImGui::End();
 
@@ -80,13 +92,28 @@ void run()
             std::cout << absolute(path) << std::endl;
         }
 
+        cmdList->ResourceBarrier(
+            1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+                window.getCurrentImage(),
+                D3D12_RESOURCE_STATE_PRESENT,
+                D3D12_RESOURCE_STATE_RENDER_TARGET)));
+
+        auto rtvHandle = window.getCurrentImageDescHandle();
+        cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+        const float CLEAR_COLOR[] = { 0, 1, 1, 0 };
+        cmdList->ClearRenderTargetView(rtvHandle, CLEAR_COLOR, 0, nullptr);
+
+        ID3D12DescriptorHeap *rawDescHeap[] = { rscHeap.getRawHeap() };
+        cmdList->SetDescriptorHeaps(1, rawDescHeap);
+
         imgui.render(cmdList);
 
-        const auto barrier2 = CD3DX12_RESOURCE_BARRIER::Transition(
-            window.getCurrentImage(),
-            D3D12_RESOURCE_STATE_RENDER_TARGET,
-            D3D12_RESOURCE_STATE_PRESENT);
-        cmdList->ResourceBarrier(1, &barrier2);
+        cmdList->ResourceBarrier(
+            1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+                window.getCurrentImage(),
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_PRESENT)));
 
         AGZ_D3D12_CHECK_HR(cmdList->Close());
 
