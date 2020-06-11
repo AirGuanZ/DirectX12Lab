@@ -255,7 +255,7 @@ DeferredRenderer::DeferredRenderer(
         }
     };
 
-    gBufferPipeline_ = window.createPipelineBuilder()
+    gBufferPipeline_ = GraphicsPipelineStateBuilder(window_.getDevice())
         .setRootSignature(gBufferRootSignature_.Get())
         .setVertexShader(compiler.compileShader(GBUFFER_VERTEX_SHADER, "vs_5_0"))
         .setPixelShader(compiler.compileShader(GBUFFER_PIXEL_SHADER, "ps_5_0"))
@@ -283,7 +283,7 @@ DeferredRenderer::DeferredRenderer(
         };
     )___").createSignature(window.getDevice());
 
-    lightingPipeline_ = window.createPipelineBuilder()
+    lightingPipeline_ = GraphicsPipelineStateBuilder(window_.getDevice())
         .setRootSignature(lightingRootSignature_.Get())
         .setVertexShader(compiler.compileShader(LIGHTING_VERTEX_SHADER, "vs_5_0"))
         .setPixelShader(compiler.compileShader(LIGHTING_PIXEL_SHADER, "ps_5_0"))

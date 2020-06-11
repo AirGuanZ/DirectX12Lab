@@ -58,7 +58,6 @@ struct Window::WindowImplData
     ComPtr<ID3D12Device>       device;
     ComPtr<ID3D12CommandQueue> cmdQueue;
     
-
     ComPtr<IDXGISwapChain3> swapChain;
 
     int swapChainImageCount = 0;
@@ -501,59 +500,6 @@ void Window::executeOneCmdList(ID3D12CommandList *cmdList) const noexcept
 void Window::waitCommandQueueIdle() const
 {
     impl_->cmdQueueWaiter->waitIdle(impl_->cmdQueue.Get());
-}
-
-ComPtr<ID3D12Fence> Window::createFence(
-    UINT64 initValue, D3D12_FENCE_FLAGS flags) const
-{
-    ComPtr<ID3D12Fence> ret;
-    AGZ_D3D12_CHECK_HR_MSG(
-        "failed to create d3d12 fence",
-        impl_->device->CreateFence(
-            initValue, flags, IID_PPV_ARGS(ret.GetAddressOf())));
-    return ret;
-}
-
-ComPtr<ID3D12CommandAllocator> Window::createCommandAllocator(
-    D3D12_COMMAND_LIST_TYPE type) const
-{
-    ComPtr<ID3D12CommandAllocator> ret;
-    AGZ_D3D12_CHECK_HR_MSG(
-        "failed to create d3d12 command allocator",
-        impl_->device->CreateCommandAllocator(
-            type, IID_PPV_ARGS(ret.GetAddressOf())));
-    return ret;
-}
-
-ComPtr<ID3D12GraphicsCommandList> Window::createGraphicsCommandList(
-    UINT                    nodeMask,
-    D3D12_COMMAND_LIST_TYPE type,
-    ID3D12CommandAllocator *cmdAlloc,
-    ID3D12PipelineState    *initPipeline)
-{
-    ComPtr<ID3D12GraphicsCommandList> ret;
-    AGZ_D3D12_CHECK_HR_MSG(
-        "failed to create d3d12 command list",
-        impl_->device->CreateCommandList(
-            nodeMask, type, cmdAlloc, initPipeline,
-            IID_PPV_ARGS(ret.GetAddressOf())));
-    return ret;
-}
-
-CommandQueueWaiter Window::createCmdQueueWaiter() const
-{
-    return CommandQueueWaiter(impl_->device.Get());
-}
-
-GraphicsPipelineStateBuilder Window::createPipelineBuilder() const
-{
-    return GraphicsPipelineStateBuilder(impl_->device.Get());
-}
-
-RawDescriptorHeap Window::createDescriptorHeap(
-    int size, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible) const
-{
-    return RawDescriptorHeap(impl_->device.Get(), size, type, shaderVisible);
 }
 
 void Window::_msgClose()

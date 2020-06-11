@@ -19,13 +19,15 @@ class PerFrameCommandList : public misc::uncopyable_t
 
 public:
 
-    explicit PerFrameCommandList(Window &window);
+    explicit PerFrameCommandList(
+        Window &window,
+        D3D12_COMMAND_LIST_TYPE cmdListType = D3D12_COMMAND_LIST_TYPE_DIRECT);
 
     ~PerFrameCommandList();
 
     void startFrame();
 
-    void endFrame();
+    void endFrame(ID3D12CommandQueue *cmdQueue = nullptr);
 
     void resetCommandList();
 
@@ -38,19 +40,29 @@ public:
     int getFrameIndex() const noexcept;
 };
 
-inline PerFrameCommandList::PerFrameCommandList(Window &window)
+inline PerFrameCommandList::PerFrameCommandList(
+    Window &window, D3D12_COMMAND_LIST_TYPE cmdListType)
     : window_(window), curFrameIndex_(0)
 {
     for(int i = 0; i < window.getImageCount(); ++i)
     {
         // cmd allocator
 
-        cmdAllocators_.push_back(
-            window.createCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT));
+        ComPtr<ID3D12CommandAllocator> ca;
+        AGZ_D3D12_CHECK_HR(
+            window.getDevice()->CreateCommandAllocator(
+                cmdListType,
+                IID_PPV_ARGS(ca.GetAddressOf())));
+        cmdAllocators_.push_back(std::move(ca));
 
         // fence
 
-        fences_.push_back(window.createFence(0, D3D12_FENCE_FLAG_NONE));
+        ComPtr<ID3D12Fence> f;
+        AGZ_D3D12_CHECK_HR(
+            window.getDevice()->CreateFence(
+                0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(f.GetAddressOf())));
+        fences_.push_back(std::move(f));
+
         fenceValues_.push_back(0);
     }
 
@@ -58,8 +70,11 @@ inline PerFrameCommandList::PerFrameCommandList(Window &window)
     if(!fenceEvent_)
         throw D3D12LabException("failed to create fence event");
 
-    cmdList_ = window.createGraphicsCommandList(
-        0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdAllocators_[0].Get(), nullptr);
+    AGZ_D3D12_CHECK_HR(
+        window.getDevice()->CreateCommandList(
+            0, cmdListType, cmdAllocators_[0].Get(), nullptr,
+            IID_PPV_ARGS(cmdList_.GetAddressOf())));
+
     cmdList_->Close();
 }
 
@@ -85,11 +100,19 @@ inline void PerFrameCommandList::startFrame()
     cmdAllocators_[curFrameIndex_]->Reset();
 }
 
-inline void PerFrameCommandList::endFrame()
+inline void PerFrameCommandList::endFrame(ID3D12CommandQueue *cmdQueue)
 {
-    window_.getCommandQueue()->Signal(
-        fences_[curFrameIndex_].Get(),
-        fenceValues_[curFrameIndex_]);
+    if(cmdQueue)
+    {
+        cmdQueue->Signal(fences_[curFrameIndex_].Get(),
+            fenceValues_[curFrameIndex_]);
+    }
+    else
+    {
+        window_.getCommandQueue()->Signal(
+            fences_[curFrameIndex_].Get(),
+            fenceValues_[curFrameIndex_]);
+    }
 }
 
 inline void PerFrameCommandList::resetCommandList()

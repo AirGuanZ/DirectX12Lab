@@ -18,9 +18,9 @@ namespace
         RootSignatureUnit -> StaticSampler
         RootSignatureUnit -> Flags (, Flags)*
         
-        RootParameter -> s Integer b Integer : CBV (, ShaderVisibility)?
-        RootParameter -> s Integer b Integer : Cons, num32Bits (, ShaderVisibility)?
-        RootParameter -> s Integer u Integer : UAV (, ShaderVisibility)?
+        RootParameter -> s Integer b Integer (, ShaderVisibility)? : CBV 
+        RootParameter -> s Integer b Integer (, ShaderVisibility)? : Cons, num32Bits
+        RootParameter -> s Integer u Integer (, ShaderVisibility)? : UAV
         RootParameter -> { (Range;)* } (, ShaderVisibility)?
         
         Range -> s Integer b Integer : CBV RangeSize?

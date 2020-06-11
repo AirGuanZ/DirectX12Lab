@@ -171,7 +171,7 @@ void run()
         .setOptLevel(ShaderCompiler::OptLevel::Debug)
         .setWarnings(true);
 
-    auto pipeline = window.createPipelineBuilder()
+    auto pipeline = GraphicsPipelineStateBuilder(device)
         .setRootSignature(rootSignature)
         .setVertexShader(compiler.compileShader(VERTEX_SHADER, "vs_5_0"))
         .setPixelShader(compiler.compileShader(PIXEL_SHADER, "ps_5_0"))

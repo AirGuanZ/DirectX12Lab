@@ -105,28 +105,6 @@ public:
 
     void waitCommandQueueIdle() const;
 
-    // fast create
-
-    ComPtr<ID3D12Fence> createFence(
-        UINT64            initValue,
-        D3D12_FENCE_FLAGS flags) const;
-
-    ComPtr<ID3D12CommandAllocator> createCommandAllocator(
-        D3D12_COMMAND_LIST_TYPE type) const;
-
-    ComPtr<ID3D12GraphicsCommandList> createGraphicsCommandList(
-        UINT                    nodeMask,
-        D3D12_COMMAND_LIST_TYPE type,
-        ID3D12CommandAllocator *cmdAlloc,
-        ID3D12PipelineState    *initPipeline);
-
-    CommandQueueWaiter createCmdQueueWaiter() const;
-
-    GraphicsPipelineStateBuilder createPipelineBuilder() const;
-
-    RawDescriptorHeap createDescriptorHeap(
-        int size, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible) const;
-
     // event handler manager
 
     AGZ_D3D12_DECL_EVENT_MGR_HANDLER(eventMgr_, WindowCloseEvent)

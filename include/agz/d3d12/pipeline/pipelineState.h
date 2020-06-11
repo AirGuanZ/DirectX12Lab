@@ -41,7 +41,7 @@ class GraphicsPipelineStateBuilder : misc::uncopyable_t
 
 public:
 
-    explicit GraphicsPipelineStateBuilder(ID3D12Device *device);
+    explicit GraphicsPipelineStateBuilder(ID3D12Device *device) noexcept;
 
     ComPtr<ID3D12PipelineState> createPipelineState() const;
 
@@ -113,6 +113,32 @@ public:
         D3D12_BLEND_DESC &desc) noexcept;
 };
 
+class ComputePipelineStateBuilder : misc::uncopyable_t
+{
+    ID3D12Device *device_;
+
+    mutable D3D12_COMPUTE_PIPELINE_STATE_DESC desc_;
+
+    ComPtr<ID3D12RootSignature> rootSignature_;
+
+    ComPtr<ID3D10Blob> computeShader_;
+
+public:
+
+    explicit ComputePipelineStateBuilder(ID3D12Device *device) noexcept;
+
+    ComPtr<ID3D12PipelineState> createPipelineState() const;
+
+    ComputePipelineStateBuilder &setRootSignature(
+        ComPtr<ID3D12RootSignature> rootSignature) noexcept;
+
+    ComputePipelineStateBuilder &setComputeShader(
+        const D3D12_SHADER_BYTECODE &byteCode) noexcept;
+
+    ComputePipelineStateBuilder &setComputeShader(
+        ComPtr<ID3D10Blob> byteCode) noexcept;
+};
+
 inline InputLayoutBuilder &InputLayoutBuilder::operator()(
     const D3D12_INPUT_ELEMENT_DESC &desc)
 {
@@ -142,7 +168,7 @@ inline D3D12_INPUT_LAYOUT_DESC InputLayoutBuilder::getDesc() const noexcept
 }
 
 inline GraphicsPipelineStateBuilder::GraphicsPipelineStateBuilder(
-    ID3D12Device *device)
+    ID3D12Device *device) noexcept
     : device_(device), desc_{}
 {
     desc_.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -151,6 +177,7 @@ inline GraphicsPipelineStateBuilder::GraphicsPipelineStateBuilder(
     desc_.SampleMask            = 0xffffffff;
     desc_.RasterizerState       = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     desc_.BlendState            = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    desc_.Flags                 = D3D12_PIPELINE_STATE_FLAG_NONE;
 }
 
 inline ComPtr<ID3D12PipelineState>
@@ -307,6 +334,52 @@ inline GraphicsPipelineStateBuilder &
         D3D12_BLEND_DESC &desc) noexcept
 {
     desc_.BlendState = desc;
+    return *this;
+}
+
+inline ComputePipelineStateBuilder::ComputePipelineStateBuilder(
+    ID3D12Device *device) noexcept
+    : device_(device), desc_{}
+{
+    desc_.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+}
+
+inline ComPtr<ID3D12PipelineState>
+    ComputePipelineStateBuilder::createPipelineState() const
+{
+    desc_.pRootSignature = rootSignature_.Get();
+
+    ComPtr<ID3D12PipelineState> ret;
+    AGZ_D3D12_CHECK_HR(
+        device_->CreateComputePipelineState(
+            &desc_, IID_PPV_ARGS(ret.GetAddressOf())));
+
+    return ret;
+}
+
+inline ComputePipelineStateBuilder &
+    ComputePipelineStateBuilder::setRootSignature(
+        ComPtr<ID3D12RootSignature> rootSignature) noexcept
+{
+    rootSignature_ = std::move(rootSignature);
+    return *this;
+}
+
+inline ComputePipelineStateBuilder &
+    ComputePipelineStateBuilder::setComputeShader(
+        const D3D12_SHADER_BYTECODE &byteCode) noexcept
+{
+    computeShader_.Reset();
+    desc_.CS = byteCode;
+    return *this;
+}
+
+inline ComputePipelineStateBuilder &
+    ComputePipelineStateBuilder::setComputeShader(
+        ComPtr<ID3D10Blob> byteCode) noexcept
+{
+    computeShader_ = std::move(byteCode);
+    desc_.CS = blobToByteCode(computeShader_);
     return *this;
 }
 
