@@ -70,3 +70,8 @@ Render a triangle mesh.
   
   [ImGui-Filebrowser](https://github.com/AirGuanZ/imgui-filebrowser)
 
+## 07.compute
+
+* Gaussian Blurr with compute shader
+
+![pic](./screenshots/07_compute.png)
