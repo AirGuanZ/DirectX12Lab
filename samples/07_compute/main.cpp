@@ -193,15 +193,21 @@ void run()
 
     // compute pipeline
 
-    auto rootSignature = createRootSignature(
-        device,
-        R"___(
-            s0b0 : Cons, 12;
-            {
-                s0t0 : SRV;
-                s0u0 : UAV;
-            };
-        )___");
+    auto rootSignature = fg::RootSignature
+    {
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+        fg::ImmediateConstants
+        {
+            D3D12_SHADER_VISIBILITY_ALL,
+            "s0b0", 12
+        },
+        fg::DescriptorTable
+        {
+            D3D12_SHADER_VISIBILITY_ALL,
+            fg::ShaderResourceViewRange{ "s0t0" },
+            fg::UnorderedAccessViewRange{ "s0u0" }
+        }
+    }.createRootSignature(device);
 
     ShaderCompiler compiler;
     compiler

@@ -72,6 +72,6 @@ Render a triangle mesh.
 
 ## 07.compute
 
-* Gaussian Blurr with compute shader
+* Gaussian Blur with compute shader
 
 ![pic](./screenshots/07_compute.png)

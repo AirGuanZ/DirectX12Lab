@@ -124,25 +124,10 @@ void run()
 
     // root signature
 
-    CD3DX12_ROOT_PARAMETER rootParams[1] = {};
-    rootParams[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(
-        UINT(agz::array_size(rootParams)), rootParams, 0, nullptr,
-        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-    ComPtr<ID3D10Blob> rootSignatureBlob;
-    AGZ_D3D12_CHECK_HR(D3D12SerializeRootSignature(
-        &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-        rootSignatureBlob.GetAddressOf(), nullptr));
-
-    ComPtr<ID3D12RootSignature> rootSignature;
-    AGZ_D3D12_CHECK_HR(device->CreateRootSignature(
-        0,
-        rootSignatureBlob->GetBufferPointer(),
-        rootSignatureBlob->GetBufferSize(),
-        IID_PPV_ARGS(rootSignature.GetAddressOf())));
+    auto rootSignature = fg::RootSignature{
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_VERTEX, "s0b0" }
+    }.createRootSignature(device);
 
     // pipeline state
 
@@ -203,18 +188,6 @@ void run()
         depthStencilBuffer.initialize(
             device, window.getImageWidth(), window.getImageHeight(),
             DXGI_FORMAT_D24_UNORM_S8_UINT);
-
-        cmdList.resetCommandList();
-        const auto depthStencilBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-            depthStencilBuffer.getResource(),
-            D3D12_RESOURCE_STATE_COMMON,
-            D3D12_RESOURCE_STATE_DEPTH_WRITE);
-        cmdList->ResourceBarrier(1, &depthStencilBarrier);
-        cmdList->Close();
-
-        window.executeOneCmdList(cmdList.getCmdList());
-
-        window.waitCommandQueueIdle();
     };
 
     prepareDepthStencilBuffer();

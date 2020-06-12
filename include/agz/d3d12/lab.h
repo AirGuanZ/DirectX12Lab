@@ -11,12 +11,14 @@
 #include <agz/d3d12/descriptor/rawDescriptorHeap.h>
 #include <agz/d3d12/descriptor/descriptorHeap.h>
 
+#include <agz/d3d12/framegraph/resourceBinding.h>
+#include <agz/d3d12/framegraph/rootSignature.h>
+
 #include <agz/d3d12/imgui/imguiIntegration.h>
 
 #include <agz/d3d12/misc/resourceReleaser.h>
 
 #include <agz/d3d12/pipeline/pipelineState.h>
-#include <agz/d3d12/pipeline/rootSignature.h>
 #include <agz/d3d12/pipeline/shader.h>
 
 #include <agz/d3d12/sync/cmdQueueWaiter.h>

@@ -219,17 +219,22 @@ DeferredRenderer::DeferredRenderer(
 
     // g-buffer pipeline
 
-    gBufferRootSignature_ = RootSignatureBuilder(
-    R"___(
-        inputAssembly;
-        s0b0, vertex : CBV;                 # vsTransform
-        pixel : {
-            s0t0 : SRV;                     # psAlbedo
-        };
-        s0s0, pixel : {                     # LinearSampler
-            filter : linear, linear, linear;
-        };
-    )___").createSignature(window.getDevice());
+    gBufferRootSignature_ = fg::RootSignature
+    {
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_VERTEX, "s0b0" },
+        fg::DescriptorTable
+        {
+            D3D12_SHADER_VISIBILITY_PIXEL,
+            fg::ShaderResourceViewRange{ "s0t0" }
+        },
+        fg::StaticSampler
+        {
+            D3D12_SHADER_VISIBILITY_PIXEL,
+            "s0s0",
+            D3D12_FILTER_MIN_MAG_MIP_LINEAR
+        }
+    }.createRootSignature(window_.getDevice());
 
     ShaderCompiler compiler;
     compiler
@@ -270,18 +275,24 @@ DeferredRenderer::DeferredRenderer(
 
     // lighting pipeline
 
-    lightingRootSignature_ = RootSignatureBuilder(
-    R"___(
-        s0b0, pixel : CBV; # PointLight
-        pixel : {
-            s0t0 : SRV;    # Position
-            s0t1 : SRV;    # Normal
-            s0t2 : SRV;    # Color
-        };
-        s0s0, pixel : {    # PointSampler
-            filter : nearest, nearest, nearest;
-        };
-    )___").createSignature(window.getDevice());
+    lightingRootSignature_ = fg::RootSignature
+    {
+        D3D12_ROOT_SIGNATURE_FLAG_NONE,
+        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_PIXEL, "s0b0" },
+        fg::DescriptorTable
+        {
+            D3D12_SHADER_VISIBILITY_PIXEL,
+            fg::ShaderResourceViewRange{ "s0t0" },
+            fg::ShaderResourceViewRange{ "s0t1" },
+            fg::ShaderResourceViewRange{ "s0t2" }
+        },
+        fg::StaticSampler
+        {
+            D3D12_SHADER_VISIBILITY_PIXEL,
+            "s0s0",
+            D3D12_FILTER_MIN_MAG_MIP_POINT
+        }
+    }.createRootSignature(window.getDevice());
 
     lightingPipeline_ = GraphicsPipelineStateBuilder(window_.getDevice())
         .setRootSignature(lightingRootSignature_.Get())

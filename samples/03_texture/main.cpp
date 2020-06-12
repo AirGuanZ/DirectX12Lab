@@ -124,16 +124,22 @@ void run()
 
     // root signature
 
-    auto rootSignature = createRootSignature(
-        device,
-        R"___(
-            inputAssembly;
-            s0b0, vertex : CBV;                                  # vsTransform
-                  pixel  : { s0t0 : SRV; };                      # desc table for psTexture
-            s0s0, pixel  : { filter : linear, linear, linear; }; # psSampler
-        )___");
-
-    // pipeline state
+    auto rootSignature = fg::RootSignature
+    {
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_VERTEX, "s0b0" },
+        fg::DescriptorTable
+        {
+            D3D12_SHADER_VISIBILITY_PIXEL,
+            fg::ShaderResourceViewRange{ "s0t0" }
+        },
+        fg::StaticSampler
+        {
+            D3D12_SHADER_VISIBILITY_PIXEL,
+            "s0s0",
+            D3D12_FILTER_MIN_MAG_MIP_LINEAR
+        }
+    }.createRootSignature(device);
 
     D3D12_INPUT_ELEMENT_DESC inputDescs[] =
     {
