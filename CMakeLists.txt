@@ -14,7 +14,8 @@ ENDIF()
 
 FILE(GLOB_RECURSE D3D12_SRC
 		"${PROJECT_SOURCE_DIR}/src/*.cpp"
-		"${PROJECT_SOURCE_DIR}/include/*.h")
+		"${PROJECT_SOURCE_DIR}/include/*.h"
+		"${PROJECT_SOURCE_DIR}/include/*.inl")
 
 ADD_LIBRARY(D3D12Lab STATIC ${D3D12_SRC})
 

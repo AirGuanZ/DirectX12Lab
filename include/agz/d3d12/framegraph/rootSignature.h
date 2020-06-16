@@ -49,7 +49,12 @@ struct ViewRangeBase
     UINT rangeSize;
 
     ResourceIndex singleRsc;
-    DXGI_FORMAT   singleRscFormat;
+    union
+    {
+        D3D12_CONSTANT_BUFFER_VIEW_DESC  cbvDesc;
+        D3D12_SHADER_RESOURCE_VIEW_DESC  srvDesc;
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+    };
 };
 
 struct ConstantBufferViewRange : ViewRangeBase
@@ -178,10 +183,28 @@ namespace detail
         vrb.singleRsc = singleRsc;
     }
 
-    inline void _initVRB(ViewRangeBase &vrb, DXGI_FORMAT singleRscFormat) noexcept
+    inline void _initVRB(
+        ViewRangeBase &vrb,
+        const D3D12_CONSTANT_BUFFER_VIEW_DESC &cbvDesc) noexcept
     {
         assert(vrb.rangeSize == 1);
-        vrb.singleRscFormat = singleRscFormat;
+        vrb.cbvDesc = cbvDesc;
+    }
+
+    inline void _initVRB(
+        ViewRangeBase &vrb,
+        const D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc) noexcept
+    {
+        assert(vrb.rangeSize == 1);
+        vrb.srvDesc = srvDesc;
+    }
+
+    inline void _initVRB(
+        ViewRangeBase &vrb,
+        const D3D12_UNORDERED_ACCESS_VIEW_DESC &uavDesc) noexcept
+    {
+        assert(vrb.rangeSize == 1);
+        vrb.uavDesc = uavDesc;
     }
 
 } // namespace detail
@@ -191,7 +214,7 @@ ViewRangeBase::ViewRangeBase(
     std::string registerBinding,
     Args &&... args) noexcept
     : registerBinding(std::move(registerBinding)), rangeSize(1),
-      singleRsc(RESOURCE_NIL), singleRscFormat(DXGI_FORMAT_UNKNOWN)
+      singleRsc(RESOURCE_NIL), cbvDesc{}
 {
     InvokeAll([&] { detail::_initVRB(*this, std::forward<Args>(args)); }...);
 }
@@ -270,6 +293,7 @@ StaticSampler::StaticSampler(
     D3D12_SHADER_VISIBILITY vis,
     std::string registerBinding,
     Args &&... args)
+    : desc{}
 {
     desc.ShaderVisibility = vis;
     if(!detail::parseRegister(

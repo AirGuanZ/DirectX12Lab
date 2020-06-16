@@ -11,8 +11,10 @@
 #include <agz/d3d12/descriptor/rawDescriptorHeap.h>
 #include <agz/d3d12/descriptor/descriptorHeap.h>
 
-#include <agz/d3d12/framegraph/resourceBinding.h>
 #include <agz/d3d12/framegraph/rootSignature.h>
+#include <agz/d3d12/framegraph/renderTargetViewDesc.h>
+#include <agz/d3d12/framegraph/shaderResourceViewDesc.h>
+#include <agz/d3d12/framegraph/unorderedAccessViewDesc.h>
 
 #include <agz/d3d12/imgui/imguiIntegration.h>
 

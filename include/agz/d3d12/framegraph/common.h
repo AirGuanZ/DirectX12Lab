@@ -12,13 +12,17 @@ struct ResourceIndex
     int32_t idx = -1;
 
     bool isNil() const noexcept { return idx < 0; }
+
+    bool operator<(ResourceIndex rhs) const noexcept { return idx < rhs.idx; }
 };
 
-struct TaskIndex
+struct PassIndex
 {
     int32_t idx = -1;
 
     bool isNil() const noexcept { return idx < 0; }
+
+    bool operator<(PassIndex rhs) const noexcept { return idx < rhs.idx; }
 };
 
 constexpr ResourceIndex RESOURCE_NIL = { -1 };

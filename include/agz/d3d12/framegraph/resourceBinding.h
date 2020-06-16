@@ -17,56 +17,25 @@ struct ClearDepthStencil
     UINT8 stencil = 0;
 };
 
-// read rsc
-struct InputTexture2D
+struct MipSlice
 {
-    ResourceIndex rsc;
-};
-
-// write rsc
-struct OutputTexture2D
-{
-    ResourceIndex rsc;
-};
-
-// read 'PIXEL_SHADER_RESOURCE' rsc
-struct PixelShaderResourceTexture2D
-{
-    ResourceIndex rsc  = RESOURCE_NIL;
-    DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
-};
-
-// read 'NONPIXEL_SHADER_RESOURCE' rsc
-struct NonPixelShaderResourceTexture2D
-{
-    ResourceIndex rsc  = RESOURCE_NIL;
-    DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
-};
-
-// read 'PIXEL & NOPIXEL SHADER_RESOURCE' rsc
-struct ShaderResourceTexture2D
-{
-    ResourceIndex rsc  = RESOURCE_NIL;
-    DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
-};
-
-// write 'UNORDERED_ACCESS' rsc
-struct UnorderedAccessTexture2D
-{
-    ResourceIndex rsc = RESOURCE_NIL;
+    UINT slice = 0;
 };
 
 // write 'RENDER_TARGET' rsc
 struct RenderTarget
 {
-    explicit RenderTarget(ResourceIndex rsc) noexcept;
-
-    RenderTarget(ResourceIndex rsc, const ClearColor &clearValue) noexcept;
+    // Args: ClearColor
+    //       MipSlice
+    template<typename...Args>
+    RenderTarget(ResourceIndex rsc, Args&&...args) noexcept;
 
     ResourceIndex rsc;
 
     bool clear;
     ClearColor clearValue;
+
+    UINT mipSlice;
 };
 
 // write 'DEPTH_WRITE' rsc
@@ -88,17 +57,70 @@ struct DepthStencil
     ClearDepthStencil clearValue;
 };
 
-inline RenderTarget::RenderTarget(ResourceIndex rsc) noexcept
-    : rsc(rsc), clear(false)
+namespace passrsc
 {
-    
-}
 
-inline RenderTarget::RenderTarget(
-    ResourceIndex rsc, const ClearColor &clearValue) noexcept
-    : rsc(rsc), clear(true), clearValue(clearValue)
+    struct MSAAAResolveSrc
+    {
+        ResourceIndex rsc;
+    };
+
+    struct MSAAResolveDst
+    {
+        ResourceIndex rsc;
+    };
+
+    // read 'PIXEL_SHADER_RESOURCE' rsc with SRV
+    struct PixelShaderResource
+    {
+        ResourceIndex rsc;
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    };
+
+    // read 'NONPIXEL_SHADER_RESOURCE' rsc with SRV
+    struct NonPixelShaderResource
+    {
+        ResourceIndex rsc;
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    };
+
+    // read 'PIXEL & NOPIXEL SHADER_RESOURCE' rsc with SRV
+    struct ShaderResource
+    {
+        ResourceIndex rsc;
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    };
+
+    // write 'UNORDERED_ACCESS' rsc with UAV
+    struct UnorderedAccess
+    {
+        ResourceIndex rsc = RESOURCE_NIL;
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+    };
+
+} // namespace passrsc
+
+namespace detail
 {
-    
+
+    inline void _initRT(RenderTarget &rt, const ClearColor &clearColor) noexcept
+    {
+        rt.clear      = true;
+        rt.clearValue = clearColor;
+    }
+
+    inline void _initRT(RenderTarget &rt, const MipSlice &mipSlice) noexcept
+    {
+        rt.mipSlice = mipSlice.slice;
+    }
+
+} // namespace detail
+
+template<typename ... Args>
+RenderTarget::RenderTarget(ResourceIndex rsc, Args &&... args) noexcept
+    : rsc(rsc), clear(false), mipSlice(0)
+{
+    InvokeAll([&] { detail::_initRT(*this, std::forward<Args>(args)); }...);
 }
 
 namespace detail
