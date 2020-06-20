@@ -199,13 +199,13 @@ void run()
         fg::ImmediateConstants
         {
             D3D12_SHADER_VISIBILITY_ALL,
-            "s0b0", 12
+            fg::s0b0, 12
         },
         fg::DescriptorTable
         {
             D3D12_SHADER_VISIBILITY_ALL,
-            fg::ShaderResourceViewRange{ "s0t0" },
-            fg::UnorderedAccessViewRange{ "s0u0" }
+            fg::SRVRange{ fg::s0t0 },
+            fg::UAVRange{ fg::s0u0 },
         }
     }.createRootSignature(device);
 

@@ -222,16 +222,16 @@ DeferredRenderer::DeferredRenderer(
     gBufferRootSignature_ = fg::RootSignature
     {
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
-        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_VERTEX, "s0b0" },
+        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_VERTEX, fg::s0b0 },
         fg::DescriptorTable
         {
             D3D12_SHADER_VISIBILITY_PIXEL,
-            fg::ShaderResourceViewRange{ "s0t0" }
+            fg::s0t0,
         },
         fg::StaticSampler
         {
             D3D12_SHADER_VISIBILITY_PIXEL,
-            "s0s0",
+            fg::s0s0,
             D3D12_FILTER_MIN_MAG_MIP_LINEAR
         }
     }.createRootSignature(window_.getDevice());
@@ -278,18 +278,18 @@ DeferredRenderer::DeferredRenderer(
     lightingRootSignature_ = fg::RootSignature
     {
         D3D12_ROOT_SIGNATURE_FLAG_NONE,
-        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_PIXEL, "s0b0" },
+        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_PIXEL, fg::s0b0 },
         fg::DescriptorTable
         {
             D3D12_SHADER_VISIBILITY_PIXEL,
-            fg::ShaderResourceViewRange{ "s0t0" },
-            fg::ShaderResourceViewRange{ "s0t1" },
-            fg::ShaderResourceViewRange{ "s0t2" }
+            fg::s0t0,
+            fg::s0t1,
+            fg::s0t2
         },
         fg::StaticSampler
         {
             D3D12_SHADER_VISIBILITY_PIXEL,
-            "s0s0",
+            fg::s0s0,
             D3D12_FILTER_MIN_MAG_MIP_POINT
         }
     }.createRootSignature(window.getDevice());

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <agz/d3d12/framegraph/shaderResourceViewDesc.h>
-
 AGZ_D3D12_FG_BEGIN
 
 namespace detail
@@ -34,14 +32,15 @@ namespace detail
 
 } // namespace detail
 
-inline UAV::UAV() noexcept
-    : desc{}
+inline UAV::UAV(ResourceIndex rsc) noexcept
+    : rsc(rsc), desc{}
 {
     desc.Format = DXGI_FORMAT_UNKNOWN;
 }
 
 template<typename ... Args>
-Tex2DUAV::Tex2DUAV(const Args &... args) noexcept
+Tex2DUAV::Tex2DUAV(ResourceIndex rsc, const Args &... args) noexcept
+    : UAV(rsc)
 {
     desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     desc.Texture2D     = { 0, 0 };
@@ -49,7 +48,8 @@ Tex2DUAV::Tex2DUAV(const Args &... args) noexcept
 }
 
 template<typename ... Args>
-Tex2DArrUAV::Tex2DArrUAV(const Args &... args) noexcept
+Tex2DArrUAV::Tex2DArrUAV(ResourceIndex rsc, const Args &... args) noexcept
+    : UAV(rsc)
 {
     desc.ViewDimension  = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
     desc.Texture2DArray = { 0, 0, 1, 0 };

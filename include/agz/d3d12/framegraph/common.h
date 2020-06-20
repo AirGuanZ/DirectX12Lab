@@ -16,6 +16,8 @@ struct ResourceIndex
     bool operator<(ResourceIndex rhs) const noexcept { return idx < rhs.idx; }
 };
 
+constexpr ResourceIndex RESOURCE_NIL = { -1 };
+
 struct PassIndex
 {
     int32_t idx = -1;
@@ -25,7 +27,52 @@ struct PassIndex
     bool operator<(PassIndex rhs) const noexcept { return idx < rhs.idx; }
 };
 
-constexpr ResourceIndex RESOURCE_NIL = { -1 };
+constexpr PassIndex PASS_NIL = { -1 };
+
+struct Register
+{
+    constexpr Register(UINT num) noexcept : Register(0, num) { }
+
+    constexpr Register(UINT space, UINT num) noexcept
+        : registerSpace(space), registerNumber(num)
+    {
+        
+    }
+
+    UINT registerSpace;
+    UINT registerNumber;
+};
+
+struct TRegister : Register { using Register::Register; };
+struct BRegister : Register { using Register::Register; };
+struct URegister : Register { using Register::Register; };
+struct SRegister : Register { using Register::Register; };
+
+#define AGZ_D3D12_DECL_REG(X, Y) \
+    constexpr TRegister s##X##t##Y = { X, Y }; \
+    constexpr BRegister s##X##b##Y = { X, Y }; \
+    constexpr URegister s##X##u##Y = { X, Y }; \
+    constexpr SRegister s##X##s##Y = { X, Y };
+
+#define AGZ_D3D12_DECL_REG_SPACE(X) \
+    AGZ_D3D12_DECL_REG(X, 0)  AGZ_D3D12_DECL_REG(X, 1)  AGZ_D3D12_DECL_REG(X, 2)  AGZ_D3D12_DECL_REG(X, 3) \
+    AGZ_D3D12_DECL_REG(X, 4)  AGZ_D3D12_DECL_REG(X, 5)  AGZ_D3D12_DECL_REG(X, 6)  AGZ_D3D12_DECL_REG(X, 7) \
+    AGZ_D3D12_DECL_REG(X, 8)  AGZ_D3D12_DECL_REG(X, 9)  AGZ_D3D12_DECL_REG(X, 10) AGZ_D3D12_DECL_REG(X, 11) \
+    AGZ_D3D12_DECL_REG(X, 12) AGZ_D3D12_DECL_REG(X, 13) AGZ_D3D12_DECL_REG(X, 14) AGZ_D3D12_DECL_REG(X, 15) \
+    AGZ_D3D12_DECL_REG(X, 16) AGZ_D3D12_DECL_REG(X, 17) AGZ_D3D12_DECL_REG(X, 18) AGZ_D3D12_DECL_REG(X, 19) \
+    AGZ_D3D12_DECL_REG(X, 20) AGZ_D3D12_DECL_REG(X, 21) AGZ_D3D12_DECL_REG(X, 22) AGZ_D3D12_DECL_REG(X, 23) \
+    AGZ_D3D12_DECL_REG(X, 24) AGZ_D3D12_DECL_REG(X, 25) AGZ_D3D12_DECL_REG(X, 26) AGZ_D3D12_DECL_REG(X, 27) \
+    AGZ_D3D12_DECL_REG(X, 28) AGZ_D3D12_DECL_REG(X, 29) AGZ_D3D12_DECL_REG(X, 30) AGZ_D3D12_DECL_REG(X, 31) \
+    AGZ_D3D12_DECL_REG(X, 32) AGZ_D3D12_DECL_REG(X, 33) AGZ_D3D12_DECL_REG(X, 34) AGZ_D3D12_DECL_REG(X, 35)
+
+AGZ_D3D12_DECL_REG_SPACE(0)
+AGZ_D3D12_DECL_REG_SPACE(1)
+AGZ_D3D12_DECL_REG_SPACE(2)
+AGZ_D3D12_DECL_REG_SPACE(3)
+AGZ_D3D12_DECL_REG_SPACE(4)
+AGZ_D3D12_DECL_REG_SPACE(5)
+AGZ_D3D12_DECL_REG_SPACE(6)
+AGZ_D3D12_DECL_REG_SPACE(7)
 
 inline void InvokeAll() noexcept { }
 

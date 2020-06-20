@@ -126,7 +126,7 @@ void run()
 
     auto rootSignature = fg::RootSignature{
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
-        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_VERTEX, "s0b0" }
+        fg::ConstantBufferView{ D3D12_SHADER_VISIBILITY_VERTEX, { 0 } }
     }.createRootSignature(device);
 
     // pipeline state

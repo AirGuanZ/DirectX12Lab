@@ -12,9 +12,13 @@
 #include <agz/d3d12/descriptor/descriptorHeap.h>
 
 #include <agz/d3d12/framegraph/rootSignature.h>
-#include <agz/d3d12/framegraph/renderTargetViewDesc.h>
-#include <agz/d3d12/framegraph/shaderResourceViewDesc.h>
-#include <agz/d3d12/framegraph/unorderedAccessViewDesc.h>
+
+#include <agz/d3d12/framegraph/resourceView/depthStencilViewDesc.h>
+#include <agz/d3d12/framegraph/resourceView/descriptorTableRangeDesc.h>
+#include <agz/d3d12/framegraph/resourceView/renderTargetViewDesc.h>
+#include <agz/d3d12/framegraph/resourceView/shaderResourceViewDesc.h>
+#include <agz/d3d12/framegraph/resourceView/staticSamplerDesc.h>
+#include <agz/d3d12/framegraph/resourceView/unorderedAccessViewDesc.h>
 
 #include <agz/d3d12/imgui/imguiIntegration.h>
 

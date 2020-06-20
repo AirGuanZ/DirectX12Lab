@@ -2,7 +2,9 @@
 
 #include <d3d12.h>
 
-#include <agz/d3d12/framegraph/common.h>
+#include <agz/d3d12/framegraph/resourceView/descriptorTableRangeDesc.h>
+#include <agz/d3d12/framegraph/resourceView/staticSamplerDesc.h>
+#include <agz/d3d12/framegraph/graph.h>
 #include <agz/utility/misc.h>
 #include <agz/utility/string.h>
 
@@ -11,11 +13,11 @@ AGZ_D3D12_FG_BEGIN
 struct ConstantBufferView
 {
     ConstantBufferView(
-        D3D12_SHADER_VISIBILITY vis,
-        std::string             registerBinding) noexcept;
+        D3D12_SHADER_VISIBILITY  vis,
+        const BRegister         &reg) noexcept;
 
     D3D12_SHADER_VISIBILITY vis;
-    std::string registerBinding;
+    BRegister reg;
 
     D3D12_ROOT_PARAMETER toRootParameter() const;
 };
@@ -23,59 +25,15 @@ struct ConstantBufferView
 struct ImmediateConstants
 {
     ImmediateConstants(
-        D3D12_SHADER_VISIBILITY vis,
-        std::string             registerBinding,
-        UINT32                  num32Bits) noexcept;
+        D3D12_SHADER_VISIBILITY  vis,
+        const BRegister         &reg,
+        UINT32                   num32Bits) noexcept;
 
     D3D12_SHADER_VISIBILITY vis;
-    std::string registerBinding;
+    BRegister reg;
     UINT32 num32Bits;
 
     D3D12_ROOT_PARAMETER toRootParameter() const;
-};
-
-struct RangeSize
-{
-    UINT size;
-};
-
-struct ViewRangeBase
-{
-    // Args: RangeSize, ResourceIndex, DXGI_FORMAT
-    template<typename...Args>
-    explicit ViewRangeBase(std::string registerBinding, Args&&...args) noexcept;
-
-    std::string registerBinding;
-    UINT rangeSize;
-
-    ResourceIndex singleRsc;
-    union
-    {
-        D3D12_CONSTANT_BUFFER_VIEW_DESC  cbvDesc;
-        D3D12_SHADER_RESOURCE_VIEW_DESC  srvDesc;
-        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
-    };
-};
-
-struct ConstantBufferViewRange : ViewRangeBase
-{
-    using ViewRangeBase::ViewRangeBase;
-
-    D3D12_DESCRIPTOR_RANGE toDescriptorRange() const;
-};
-
-struct ShaderResourceViewRange : ViewRangeBase
-{
-    using ViewRangeBase::ViewRangeBase;
-
-    D3D12_DESCRIPTOR_RANGE toDescriptorRange() const;
-};
-
-struct UnorderedAccessViewRange : ViewRangeBase
-{
-    using ViewRangeBase::ViewRangeBase;
-
-    D3D12_DESCRIPTOR_RANGE toDescriptorRange() const;
 };
 
 struct DescriptorTable
@@ -86,57 +44,27 @@ struct DescriptorTable
     template<typename...Args>
     explicit DescriptorTable(D3D12_SHADER_VISIBILITY vis, Args&&...args);
 
+    template<typename OutIt>
+    void collectUsedResources(OutIt outIt) const;
+
     D3D12_SHADER_VISIBILITY vis;
 
     using DescriptorRange = misc::variant_t<
-        ConstantBufferViewRange,
-        ShaderResourceViewRange,
-        UnorderedAccessViewRange>;
+        CBVRange,
+        SRVRange,
+        UAVRange>;
 
     std::vector<DescriptorRange> ranges;
-};
-
-struct SamplerAddressMode
-{
-    D3D12_TEXTURE_ADDRESS_MODE u = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-    D3D12_TEXTURE_ADDRESS_MODE v = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-    D3D12_TEXTURE_ADDRESS_MODE w = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-};
-
-struct SamplerLOD
-{
-    float mipLODBias = 0;
-
-    float minLOD = 0;
-    float maxLOD = FLT_MAX;
-};
-
-struct SamplerMaxAnisotropy
-{
-    UINT maxAnisotropy;
-};
-
-struct StaticSampler
-{
-    // Args: D3D12_FILTER
-    //       SamplerAddressMode
-    //       SamplerLOD
-    //       SamplerMaxAnisotropy
-    //       D3D12_COMPARISON_FUNC
-    template<typename...Args>
-    StaticSampler(
-        D3D12_SHADER_VISIBILITY vis,
-        std::string registerBinding,
-        Args &&...args);
-
-    D3D12_STATIC_SAMPLER_DESC desc;
 };
 
 struct RootSignature
 {
     template<typename...Args>
-    RootSignature(
+    explicit RootSignature(
         D3D12_ROOT_SIGNATURE_FLAGS flags, Args&&...args);
+
+    template<typename OutIt>
+    void collectUsedResources(OutIt outIt) const;
 
     using RootParameter = misc::variant_t<
         ConstantBufferView,
@@ -152,71 +80,20 @@ struct RootSignature
 };
 
 inline ConstantBufferView::ConstantBufferView(
-    D3D12_SHADER_VISIBILITY vis,
-    std::string             registerBinding) noexcept
-    : vis(vis), registerBinding(std::move(registerBinding))
+    D3D12_SHADER_VISIBILITY  vis,
+    const BRegister         &reg) noexcept
+    : vis(vis), reg(reg)
 {
     
 }
 
 inline ImmediateConstants::ImmediateConstants(
-    D3D12_SHADER_VISIBILITY vis,
-    std::string             registerBinding,
-    UINT32                  num32Bits) noexcept
-    : vis(vis), registerBinding(registerBinding), num32Bits(num32Bits)
+    D3D12_SHADER_VISIBILITY  vis,
+    const BRegister         &reg,
+    UINT32                   num32Bits) noexcept
+    : vis(vis), reg(reg), num32Bits(num32Bits)
 {
     
-}
-
-namespace detail
-{
-
-    inline void _initVRB(ViewRangeBase &vrb, RangeSize rangeSize) noexcept
-    {
-        assert(rangeSize.size == 1 || vrb.singleRsc.isNil());
-        vrb.rangeSize = rangeSize.size;
-    }
-
-    inline void _initVRB(ViewRangeBase &vrb, ResourceIndex singleRsc) noexcept
-    {
-        assert(vrb.rangeSize == 1);
-        vrb.singleRsc = singleRsc;
-    }
-
-    inline void _initVRB(
-        ViewRangeBase &vrb,
-        const D3D12_CONSTANT_BUFFER_VIEW_DESC &cbvDesc) noexcept
-    {
-        assert(vrb.rangeSize == 1);
-        vrb.cbvDesc = cbvDesc;
-    }
-
-    inline void _initVRB(
-        ViewRangeBase &vrb,
-        const D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc) noexcept
-    {
-        assert(vrb.rangeSize == 1);
-        vrb.srvDesc = srvDesc;
-    }
-
-    inline void _initVRB(
-        ViewRangeBase &vrb,
-        const D3D12_UNORDERED_ACCESS_VIEW_DESC &uavDesc) noexcept
-    {
-        assert(vrb.rangeSize == 1);
-        vrb.uavDesc = uavDesc;
-    }
-
-} // namespace detail
-
-template<typename ... Args>
-ViewRangeBase::ViewRangeBase(
-    std::string registerBinding,
-    Args &&... args) noexcept
-    : registerBinding(std::move(registerBinding)), rangeSize(1),
-      singleRsc(RESOURCE_NIL), cbvDesc{}
-{
-    InvokeAll([&] { detail::_initVRB(*this, std::forward<Args>(args)); }...);
 }
 
 template<typename ... Args>
@@ -224,100 +101,64 @@ DescriptorTable::DescriptorTable(D3D12_SHADER_VISIBILITY vis, Args &&... args)
     : vis(vis)
 {
     InvokeAll([&] { ranges.push_back(std::forward<Args>(args)); }...);
+
+    // check srv scope based on vis
+
+    auto isSRVScopeCompatible = [&](SRVScope scope)
+    {
+        switch(scope)
+        {
+        case PixelSRV:
+            return vis == D3D12_SHADER_VISIBILITY_ALL ||
+                   vis == D3D12_SHADER_VISIBILITY_PIXEL;
+        case NonPixelSRV:
+            return vis != D3D12_SHADER_VISIBILITY_PIXEL;
+        default:
+            return true;
+        }
+    };
+
+    for(auto &r : ranges)
+    {
+        match_variant(r,
+            [&](SRVRange &srvr)
+        {
+            if(srvr.singleSRV.rsc.isNil())
+                return;
+            if(!isSRVScopeCompatible(srvr.singleSRV.scope))
+            {
+                throw D3D12LabException(
+                    "uncompatible dt visibility and srv scope");
+            }
+
+            if(srvr.singleSRV.scope == DefaultSRVScope)
+            {
+                if(vis == D3D12_SHADER_VISIBILITY_PIXEL)
+                    srvr.singleSRV.scope = PixelSRV;
+            }
+        },
+            [&](const auto &) {});
+    }
 }
 
-namespace detail
+template<typename OutIt>
+void DescriptorTable::collectUsedResources(OutIt outIt) const
 {
-    inline bool parseRegister(
-        const std::string &reg, char regType,
-        UINT &space, UINT &num) noexcept
+    for(auto &range : ranges)
     {
-        try
+        match_variant(range,
+            [&](const SRVRange &srvr)
         {
-            if(reg[0] != 's')
-                return false;
-
-            const auto ss = stdstr::split(reg.substr(1), regType);
-            if(ss.size() != 2)
-                return false;
-
-            space = std::stoul(ss[0]);
-            num = std::stoul(ss[1]);
-        }
-        catch(...)
+            if(!srvr.singleSRV.rsc.isNil())
+                *outIt++ = srvr.singleSRV.rsc;
+        },
+            [&](const UAVRange &uavr)
         {
-            return false;
-        }
-
-        return true;
+            if(!uavr.singleUAV.rsc.isNil())
+                *outIt++ = uavr.singleUAV.rsc;
+        },
+            [](auto &) {});
     }
-
-    inline void _initStaticSampler(
-        D3D12_STATIC_SAMPLER_DESC &d, D3D12_FILTER filter) noexcept
-    {
-        d.Filter = filter;
-    }
-
-    inline void _initStaticSampler(
-        D3D12_STATIC_SAMPLER_DESC &d, const SamplerAddressMode &m) noexcept
-    {
-        d.AddressU = m.u;
-        d.AddressV = m.v;
-        d.AddressW = m.w;
-    }
-
-    inline void _initStaticSampler(
-        D3D12_STATIC_SAMPLER_DESC &d, const SamplerLOD &lod) noexcept
-    {
-        d.MipLODBias = lod.mipLODBias;
-        d.MinLOD = lod.minLOD;
-        d.MaxLOD = lod.maxLOD;
-    }
-
-    inline void _initStaticSampler(
-        D3D12_STATIC_SAMPLER_DESC &d, SamplerMaxAnisotropy a) noexcept
-    {
-        d.MaxAnisotropy = a.maxAnisotropy;
-    }
-
-    inline void _initStaticSampler(
-        D3D12_STATIC_SAMPLER_DESC &d, D3D12_COMPARISON_FUNC f) noexcept
-    {
-        d.ComparisonFunc = f;
-    }
-
-} // namespace detail
-
-template<typename ... Args>
-StaticSampler::StaticSampler(
-    D3D12_SHADER_VISIBILITY vis,
-    std::string registerBinding,
-    Args &&... args)
-    : desc{}
-{
-    desc.ShaderVisibility = vis;
-    if(!detail::parseRegister(
-        registerBinding, 's', desc.RegisterSpace, desc.ShaderRegister))
-    {
-        throw D3D12LabException("invalid static sampler register: " +
-                                registerBinding);
-    }
-
-    desc.Filter           = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    desc.AddressU         = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-    desc.AddressV         = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-    desc.AddressW         = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-    desc.MipLODBias       = 0;
-    desc.MaxAnisotropy    = 16;
-    desc.ComparisonFunc   = D3D12_COMPARISON_FUNC_ALWAYS;
-    desc.BorderColor      = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-    desc.MinLOD           = 0;
-    desc.MaxLOD           = FLT_MAX;
-
-    InvokeAll([&]
-    {
-        detail::_initStaticSampler(desc, std::forward<Args>(args));
-    }...);
 }
 
 namespace detail
@@ -355,85 +196,31 @@ RootSignature::RootSignature(D3D12_ROOT_SIGNATURE_FLAGS flags, Args &&... args)
     }...);
 }
 
+template<typename OutIt>
+void RootSignature::collectUsedResources(OutIt outIt) const
+{
+    for(auto &param : rootParameters)
+    {
+        match_variant(param,
+            [&](const DescriptorTable &dt)
+        {
+            dt.collectUsedResources(outIt);
+        },
+            [](auto &) {});
+    }
+}
+
 inline D3D12_ROOT_PARAMETER ConstantBufferView::toRootParameter() const
 {
-    UINT registerSpace, registerNum;
-    if(!detail::parseRegister(registerBinding, 'b', registerSpace, registerNum))
-    {
-        throw D3D12LabException("invalid constant buffer view register: " +
-                                registerBinding);
-    }
-
     CD3DX12_ROOT_PARAMETER ret;
-    ret.InitAsConstantBufferView(registerNum, registerSpace, vis);
+    ret.InitAsConstantBufferView(reg.registerNumber, reg.registerSpace, vis);
     return ret;
 }
 
 inline D3D12_ROOT_PARAMETER ImmediateConstants::toRootParameter() const
 {
-    UINT registerSpace, registerNum;
-    if(!detail::parseRegister(registerBinding, 'b', registerSpace, registerNum))
-    {
-        throw D3D12LabException("invalid constant buffer view register: " +
-                                registerBinding);
-    }
-
     CD3DX12_ROOT_PARAMETER ret;
-    ret.InitAsConstants(num32Bits, registerNum, registerSpace, vis);
-    return ret;
-}
-
-inline D3D12_DESCRIPTOR_RANGE
-    ConstantBufferViewRange::toDescriptorRange() const
-{
-    UINT registerSpace, registerNum;
-    if(!detail::parseRegister(registerBinding, 'b', registerSpace, registerNum))
-    {
-        throw D3D12LabException("invalid constant buffer view (range) register: " +
-                                registerBinding);
-    }
-
-    CD3DX12_DESCRIPTOR_RANGE ret;
-    ret.Init(
-        D3D12_DESCRIPTOR_RANGE_TYPE_CBV, rangeSize,
-        registerNum, registerSpace,
-        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-    return ret;
-}
-
-inline D3D12_DESCRIPTOR_RANGE
-    ShaderResourceViewRange::toDescriptorRange() const
-{
-    UINT registerSpace, registerNum;
-    if(!detail::parseRegister(registerBinding, 't', registerSpace, registerNum))
-    {
-        throw D3D12LabException("invalid shader resource view (range) register: " +
-                                registerBinding);
-    }
-
-    CD3DX12_DESCRIPTOR_RANGE ret;
-    ret.Init(
-        D3D12_DESCRIPTOR_RANGE_TYPE_SRV, rangeSize,
-        registerNum, registerSpace,
-        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
-    return ret;
-}
-
-inline D3D12_DESCRIPTOR_RANGE
-    UnorderedAccessViewRange::toDescriptorRange() const
-{
-    UINT registerSpace, registerNum;
-    if(!detail::parseRegister(registerBinding, 'u', registerSpace, registerNum))
-    {
-        throw D3D12LabException("invalid unordered access view (range) register: " +
-                                registerBinding);
-    }
-
-    CD3DX12_DESCRIPTOR_RANGE ret;
-    ret.Init(
-        D3D12_DESCRIPTOR_RANGE_TYPE_UAV, rangeSize,
-        registerNum, registerSpace,
-        D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND);
+    ret.InitAsConstants(num32Bits, reg.registerNumber, reg.registerSpace, vis);
     return ret;
 }
 
@@ -461,17 +248,17 @@ inline ComPtr<ID3D12RootSignature> RootSignature::createRootSignature(
             for(auto &r : dt.ranges)
             {
                 match_variant(r,
-                    [&](const ConstantBufferViewRange &cbvr)
+                    [&](const CBVRange &cbvr)
                 {
-                    ranges.push_back(cbvr.toDescriptorRange());
+                    ranges.push_back(cbvr.range);
                 },
-                    [&](const ShaderResourceViewRange &srvr)
+                    [&](const SRVRange &srvr)
                 {
-                    ranges.push_back(srvr.toDescriptorRange());
+                    ranges.push_back(srvr.range);
                 },
-                    [&](const UnorderedAccessViewRange &uavr)
+                    [&](const UAVRange &uavr)
                 {
-                    ranges.push_back(uavr.toDescriptorRange());
+                    ranges.push_back(uavr.range);
                 });
             }
 

@@ -26,7 +26,7 @@ public:
     D3D12_INPUT_LAYOUT_DESC getDesc() const noexcept;
 };
 
-class GraphicsPipelineStateBuilder : misc::uncopyable_t
+class GraphicsPipelineStateBuilder
 {
     ID3D12Device *device_;
 
@@ -60,6 +60,9 @@ public:
     template<int N>
     GraphicsPipelineStateBuilder &setInputElements(
         const D3D12_INPUT_ELEMENT_DESC (&descs)[N]);
+
+    GraphicsPipelineStateBuilder &setInputElements(
+        const InputLayoutBuilder &builder);
 
     // input assembler
 
@@ -221,6 +224,14 @@ GraphicsPipelineStateBuilder &
         const D3D12_INPUT_ELEMENT_DESC (&descs)[N])
 {
     this->setInputElements(descs, N);
+    return *this;
+}
+
+inline class GraphicsPipelineStateBuilder &
+    GraphicsPipelineStateBuilder::setInputElements(
+        const InputLayoutBuilder &builder)
+{
+    inputLayout_ = builder;
     return *this;
 }
 
