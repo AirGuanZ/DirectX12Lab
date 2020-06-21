@@ -14,7 +14,8 @@ void run()
     Window window(windowDesc);
     auto device = window.getDevice();
 
-    FrameResourceFence frameFence(device, window.getImageCount());
+    FrameResourceFence frameFence(
+        device, window.getCommandQueue(), window.getImageCount());
 
     DescriptorHeap rtvHeap;
     rtvHeap.initialize(
@@ -36,23 +37,13 @@ void run()
         device, &rtvGraphHeap, &dsvGraphHeap, &gpuGraphHeap,
         window.getCommandQueue(), 3, window.getImageCount());
 
-    window.attach(std::make_unique<WindowPreResizeHandler>(
-        [&] { graph.restart(); }));
+    fg::ResourceIndex rtIdx;
 
-    while(!window.getCloseFlag())
+    auto initGraph = [&]
     {
-        window.doEvents();
-        window.waitForFocus();
-
-        if(window.getKeyboard()->isPressed(KEY_ESCAPE))
-            window.setCloseFlag(true);
-
-        frameFence.startFrame(window.getCurrentImageIndex());
-        graph.startFrame(window.getCurrentImageIndex());
-
         graph.newGraph();
 
-        const auto rtIdx = graph.addExternalResource(
+        rtIdx = graph.addExternalResource(
             window.getCurrentImage(),
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_PRESENT);
@@ -63,18 +54,45 @@ void run()
             {
                 // do nothing
             },
-            fg::RenderTargetBinding
+                fg::RenderTargetBinding
             {
                 fg::Tex2DRTV(rtIdx),
                 fg::ClearColor{ 0, 1, 1, 0 }
             });
 
         graph.compile();
+    };
+
+    initGraph();
+
+    window.attach(std::make_shared<WindowPreResizeHandler>(
+        [&] { graph.restart(); }));
+    window.attach(std::make_shared<WindowPostResizeHandler>(
+        [&] { initGraph(); }));
+
+    while(!window.getCloseFlag())
+    {
+        window.doEvents();
+        window.waitForFocus();
+
+        if(window.getKeyboard()->isPressed(KEY_ESCAPE))
+            window.setCloseFlag(true);
+
+        // call 'startFrame' after window event handling
+        // since the backbuffer index may change in resize event
+        frameFence.startFrame(window.getCurrentImageIndex());
+        graph.startFrame(window.getCurrentImageIndex());
+
+        // render target is different in each frame
+        graph.setExternalRsc(rtIdx, window.getCurrentImage());
+
+        // execute the framegraph
         graph.execute();
 
         window.present();
-        frameFence.endFrame(window.getCommandQueue());
+
         graph.endFrame();
+        frameFence.endFrame();
     }
 
     window.waitCommandQueueIdle();

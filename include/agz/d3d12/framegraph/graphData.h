@@ -59,12 +59,20 @@ public:
 
         struct RTB
         {
-            bool isBound = false;
             bool clear = false;
             ClearColor clearColor;
         };
 
-        RTB renderTargetBinding;
+        struct DSB
+        {
+            bool clearDepth   = false;
+            bool clearStencil = false;
+            ClearDepthStencil clearDethpStencil;
+        };
+
+        using RTDSBinding = misc::variant_t<std::monostate, RTB, DSB>;
+
+        RTDSBinding rtdsBinding;
     };
 
     FrameGraphPassNode(
@@ -202,6 +210,7 @@ inline bool FrameGraphPassNode::execute(
     // create descriptors
 
     std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetHandles;
+    std::optional<D3D12_CPU_DESCRIPTOR_HANDLE> depthStencilHandle;
 
     for(auto &p : rscs_)
     {
@@ -227,14 +236,15 @@ inline bool FrameGraphPassNode::execute(
             device->CreateRenderTargetView(
                 d3dRsc, &rtv.desc, r.descriptor);
 
-            if(r.renderTargetBinding.isBound)
+            if(auto rtBinding = r.rtdsBinding.as_if<PassResource::RTB>();
+               rtBinding)
             {
                 renderTargetHandles.push_back(r.descriptor);
-                if(r.renderTargetBinding.clear)
+                if(rtBinding->clear)
                 {
                     cmdList->ClearRenderTargetView(
                         r.descriptor,
-                        &r.renderTargetBinding.clearColor.r,
+                        &rtBinding->clearColor.r,
                         0, nullptr);
                 }
             }
@@ -244,6 +254,27 @@ inline bool FrameGraphPassNode::execute(
             r.descriptor = allDSVDescs[r.descIdx];
             device->CreateDepthStencilView(
                 d3dRsc, &dsv.desc, r.descriptor);
+
+            if(auto dsBinding = r.rtdsBinding.as_if<PassResource::DSB>();
+               dsBinding)
+            {
+                depthStencilHandle = r.descriptor;
+                if(dsBinding->clearDepth || dsBinding->clearStencil)
+                {
+                    const D3D12_CLEAR_FLAGS clearFlags =
+                        dsBinding->clearDepth && dsBinding->clearStencil ?
+                            D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL :
+                            (dsBinding->clearDepth ?
+                             D3D12_CLEAR_FLAG_DEPTH :
+                             D3D12_CLEAR_FLAG_STENCIL);
+
+                    cmdList->ClearDepthStencilView(
+                        r.descriptor, clearFlags,
+                        dsBinding->clearDethpStencil.depth,
+                        dsBinding->clearDethpStencil.stencil,
+                        0, nullptr);
+                }
+            }
         },
             [&](const std::monostate &) {});
     }
@@ -252,16 +283,35 @@ inline bool FrameGraphPassNode::execute(
 
     if(!renderTargetHandles.empty())
     {
-        cmdList->OMSetRenderTargets(
-            static_cast<UINT>(renderTargetHandles.size()),
-            renderTargetHandles.data(),
-            false,
-            nullptr);
+        if(depthStencilHandle)
+        {
+            cmdList->OMSetRenderTargets(
+                static_cast<UINT>(renderTargetHandles.size()),
+                renderTargetHandles.data(),
+                false,
+                &*depthStencilHandle);
+        }
+        else
+        {
+            cmdList->OMSetRenderTargets(
+                static_cast<UINT>(renderTargetHandles.size()),
+                renderTargetHandles.data(),
+                false,
+                nullptr);
+        }
     }
     else
     {
-        cmdList->OMSetRenderTargets(
-            0, nullptr, false, nullptr);
+        if(depthStencilHandle)
+        {
+            cmdList->OMSetRenderTargets(
+                0, nullptr, false, &*depthStencilHandle);
+        }
+        else
+        {
+            cmdList->OMSetRenderTargets(
+                0, nullptr, false, nullptr);
+        }
     }
 
     // pass func context

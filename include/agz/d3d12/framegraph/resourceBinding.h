@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-
 #include <agz/d3d12/framegraph/resourceView/depthStencilViewDesc.h>
 #include <agz/d3d12/framegraph/resourceView/renderTargetViewDesc.h>
 
@@ -15,6 +13,16 @@ struct ClearColor : math::color4f
 struct ClearDepthStencil
 {
     float depth   = 1;
+    UINT8 stencil = 0;
+};
+
+struct ClearDepth
+{
+    float depth = 1;
+};
+
+struct ClearStencil
+{
     UINT8 stencil = 0;
 };
 
@@ -34,11 +42,10 @@ struct DepthStencilBinding
     template<typename...Args>
     explicit DepthStencilBinding(const Args &...args) noexcept;
 
-    // only one of rsc & dsv can be non-nil
-    std::optional<ResourceIndex> rsc;
-    std::optional<DSV> dsv;
+    DSV dsv;
 
-    bool clearDepthStencil;
+    bool clearDepth;
+    bool clearStencil;
     ClearDepthStencil clearDepthStencilValue;
 };
 

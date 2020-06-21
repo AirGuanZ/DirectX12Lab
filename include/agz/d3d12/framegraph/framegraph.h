@@ -55,6 +55,8 @@ public:
 
     void compile();
 
+    void setExternalRsc(ResourceIndex idx, ComPtr<ID3D12Resource> rsc);
+
     void execute();
 
 private:
@@ -132,6 +134,12 @@ inline void FrameGraph::compile()
 {
     graphReleaser_.addReleasePoint(cmdQueue_);
     graphData_ = compiler_->compile(device_, rscAllocator_, graphReleaser_);
+}
+
+inline void FrameGraph::setExternalRsc(
+    ResourceIndex idx, ComPtr<ID3D12Resource> rsc)
+{
+    graphData_.rscNodes[idx.idx].setExternalResource(std::move(rsc));
 }
 
 inline void FrameGraph::execute()

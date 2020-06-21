@@ -10,8 +10,9 @@ class FrameResourceFence : public misc::uncopyable_t
 {
 public:
 
-    FrameResourceFence(ID3D12Device *device, int frameCount)
-        : frameIndex_(0)
+    FrameResourceFence(
+        ID3D12Device *device, ID3D12CommandQueue *cmdQueue, int frameCount)
+        : cmdQueue_(cmdQueue), frameIndex_(0)
     {
         frameEndResources_.resize(frameCount);
         for(auto &f : frameEndResources_)
@@ -32,10 +33,10 @@ public:
         frameIndex_ = frameIndex;
     }
 
-    void endFrame(ID3D12CommandQueue *cmdQueue)
+    void endFrame()
     {
         auto &f = frameEndResources_[frameIndex_];
-        cmdQueue->Signal(f.fence.Get(), ++f.lastSignaledFenceValue);
+        cmdQueue_->Signal(f.fence.Get(), ++f.lastSignaledFenceValue);
     }
 
 private:
@@ -45,6 +46,8 @@ private:
         ComPtr<ID3D12Fence> fence;
         UINT64 lastSignaledFenceValue = 0;
     };
+
+    ID3D12CommandQueue *cmdQueue_;
 
     int frameIndex_;
     std::vector<FrameEndResource> frameEndResources_;

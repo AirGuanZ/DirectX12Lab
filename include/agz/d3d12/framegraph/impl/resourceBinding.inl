@@ -21,22 +21,29 @@ namespace detail
     inline void _initDSB(
         DepthStencilBinding &dsb, const ClearDepthStencil &clearValue) noexcept
     {
-        dsb.clearDepthStencil      = true;
+        dsb.clearDepth             = true;
+        dsb.clearStencil           = true;
         dsb.clearDepthStencilValue = clearValue;
+    }
+
+    inline void _initDSB(
+        DepthStencilBinding &dsb, const ClearDepth &clearDepth) noexcept
+    {
+        dsb.clearDepth                   = true;
+        dsb.clearDepthStencilValue.depth = clearDepth.depth;
+    }
+
+    inline void _initDSB(
+        DepthStencilBinding &dsb, const ClearStencil &clearStencil) noexcept
+    {
+        dsb.clearStencil                 = true;
+        dsb.clearDepthStencilValue.depth = clearStencil.stencil;
     }
 
     inline void _initDSB(
         DepthStencilBinding &dsb, const DSV &dsv)
     {
-        assert(!dsb.rsc);
         dsb.dsv = dsv;
-    }
-
-    inline void _initDSB(
-        DepthStencilBinding &dsb, ResourceIndex rsc) noexcept
-    {
-        assert(!dsb.dsv);
-        dsb.rsc = rsc;
     }
 
 } // namespace detail
@@ -52,7 +59,7 @@ RenderTargetBinding::RenderTargetBinding(
 template<typename ... Args>
 DepthStencilBinding::DepthStencilBinding(
     const Args &... args) noexcept
-    : clearDepthStencil(false)
+    : clearDepth(false), clearStencil(false)
 {
     InvokeAll([&] { detail::_initDSB(*this, args); }...);
 }
