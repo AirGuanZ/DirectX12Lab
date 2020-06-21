@@ -1,95 +1,79 @@
 #pragma once
 
-#include <map>
-
-#include <d3d12.h>
-
-#include <agz/d3d12/framegraph/cmdListPool.h>
 #include <agz/d3d12/descriptor/descriptorHeap.h>
+#include <agz/d3d12/framegraph/resourceView/depthStencilViewDesc.h>
+#include <agz/d3d12/framegraph/resourceView/renderTargetViewDesc.h>
 #include <agz/d3d12/framegraph/resourceView/shaderResourceViewDesc.h>
 #include <agz/d3d12/framegraph/resourceView/unorderedAccessViewDesc.h>
-#include <agz/d3d12/framegraph/resourceView/renderTargetViewDesc.h>
-#include <agz/d3d12/framegraph/resourceView/depthStencilViewDesc.h>
-#include <agz/d3d12/framegraph/resourceBinding.h>
 #include <agz/utility/misc.h>
 
 AGZ_D3D12_FG_BEGIN
 
 class FrameGraphPassContext;
+class FrameGraphTaskScheduler;
 
 using FrameGraphPassFunc = std::function<
     void(
         ID3D12GraphicsCommandList *,
         FrameGraphPassContext &
-    )>;
+        )>;
+
+class FrameGraphResourceNode
+{
+public:
+
+    FrameGraphResourceNode(bool isExternal, ComPtr<ID3D12Resource> d3dRsc);
+
+    void setExternalResource(ComPtr<ID3D12Resource> d3dRsc);
+
+    ID3D12Resource *getD3DResource() const noexcept;
+
+private:
+
+    bool isExternal_;
+
+    ComPtr<ID3D12Resource> d3dRsc_;
+};
 
 class FrameGraphPassNode
 {
 public:
 
-    friend class FrameGraphPassContext;
-
     struct PassResource
     {
-        ComPtr<ID3D12Resource> rsc;
+        ResourceIndex rscIdx;
 
-        bool doInitialTransition;
-        bool doFinalTransition;
-        D3D12_RESOURCE_STATES beforeState;
-        D3D12_RESOURCE_STATES afterState;
-        D3D12_RESOURCE_STATES finalState;
+        bool doInitialTransition = false;
+        bool doFinalTransition   = false;
 
-        enum ParamType { None, DescriptorTable };
-        ParamType rootSignatureParamType;
-        UINT rootSignatureParamIndex;
+        D3D12_RESOURCE_STATES beforeState  = {};
+        D3D12_RESOURCE_STATES inState      = {};
+        D3D12_RESOURCE_STATES afterState   = {};
 
-        // rtv & dsv are prepared for only those non-bound rt & ds
-        // bound rt & ds views are recorded in PassRenderTarget & PassDepthStencil
-        misc::variant_t<std::monostate, SRV, UAV, RTV, DSV> viewDesc;
-        Descriptor descriptor;
-    };
+        using ViewDesc = misc::variant_t<std::monostate, SRV, UAV, RTV, DSV>;
+        ViewDesc viewDesc;
 
-    struct PassRenderTarget
-    {
-        ComPtr<ID3D12Resource> rsc;
-
-        RTV rtv;
-        Descriptor descriptor;
-
-        bool clear;
-        ClearColor clearValue;
-    };
-
-    struct PassDepthStencil
-    {
-        ComPtr<ID3D12Resource> rsc;
-
-        DSV dsv;
-        Descriptor descriptor;
-
-        bool clear;
-        ClearDepthStencil clearValue;
+        DescriptorIndex descIdx = 0;
+        mutable Descriptor descriptor;
     };
 
     FrameGraphPassNode(
-        std::map<ResourceIndex, PassResource> &&rscs,
-        std::vector<PassRenderTarget>         &&renderTargetBindings,
-        std::optional<PassDepthStencil>       &&depthStencilBinding,
-        ComPtr<ID3D12PipelineState>             pipelineState,
-        ComPtr<ID3D12RootSignature>             rootSignature,
-        FrameGraphPassFunc                    &&passFunc) noexcept;
+        std::map<ResourceIndex, PassResource> rscs,
+        FrameGraphPassFunc                    passFunc) noexcept;
 
-    bool execute(ID3D12Device *device, ID3D12GraphicsCommandList *cmdList);
+    bool execute(
+        ID3D12Device                        *device,
+        std::vector<FrameGraphResourceNode> &rscNodes,
+        DescriptorRange                      allGPUDescs,
+        DescriptorRange                      allRTVDescs,
+        DescriptorRange                      allDSVDescs,
+        ID3D12GraphicsCommandList           *cmdList) const;
 
 private:
 
+    friend class FrameGraphPassContext;
+
     std::map<ResourceIndex, PassResource> rscs_;
-
-    std::vector<PassRenderTarget> renderTargetBindings_;
-    std::optional<PassDepthStencil> depthStencilBinding_;
-
-    ComPtr<ID3D12PipelineState> pipelineState_;
-    ComPtr<ID3D12RootSignature> rootSignature_;
 
     FrameGraphPassFunc passFunc_;
 };
@@ -105,7 +89,12 @@ public:
         Descriptor             descriptor;
     };
 
-    explicit FrameGraphPassContext(FrameGraphPassNode &passNode) noexcept;
+    FrameGraphPassContext(
+        const std::vector<FrameGraphResourceNode> &rscNodes,
+        const FrameGraphPassNode                  &passNode,
+        DescriptorRange                            allGPUDescs,
+        DescriptorRange                            allRTVDescs,
+        DescriptorRange                            allDSVDescs) noexcept;
 
     Resource getResource(ResourceIndex index) const;
 
@@ -117,63 +106,157 @@ private:
 
     bool requestCmdListSubmission_;
 
-    FrameGraphPassNode &passNode_;
+    const std::vector<FrameGraphResourceNode> &rscNodes_;
+    const FrameGraphPassNode                  &passNode_;
+
+    DescriptorRange allGPUDescs_;
+    DescriptorRange allRTVDescs_;
+    DescriptorRange allDSVDescs_;
 };
 
-class FrameGraphTaskScheduler : public misc::uncopyable_t
+inline FrameGraphResourceNode::FrameGraphResourceNode(
+    bool isExternal, ComPtr<ID3D12Resource> d3dRsc)
+    : isExternal_(isExternal), d3dRsc_(d3dRsc)
 {
-public:
+    
+}
 
-    FrameGraphTaskScheduler(
-        std::vector<FrameGraphPassNode> &passNodes,
-        CommandListPool                 &cmdListPool,
-        ComPtr<ID3D12CommandQueue>       cmdQueue);
+inline void FrameGraphResourceNode::setExternalResource(
+    ComPtr<ID3D12Resource> d3dRsc)
+{
+    assert(isExternal_);
+    d3dRsc_ = d3dRsc;
+}
 
-    struct TaskRange
+inline ID3D12Resource *FrameGraphResourceNode::getD3DResource() const noexcept
+{
+    return d3dRsc_.Get();
+}
+
+inline FrameGraphPassNode::FrameGraphPassNode(
+    std::map<ResourceIndex, PassResource> rscs,
+    FrameGraphPassFunc                    passFunc) noexcept
+    : rscs_(std::move(rscs)), passFunc_(std::move(passFunc))
+{
+
+}
+
+inline bool FrameGraphPassNode::execute(
+    ID3D12Device                        *device,
+    std::vector<FrameGraphResourceNode> &rscNodes,
+    DescriptorRange                      allGPUDescs,
+    DescriptorRange                      allRTVDescs,
+    DescriptorRange                      allDSVDescs,
+    ID3D12GraphicsCommandList           *cmdList) const
+{
+    // rsc barriers & descs
+
+    std::vector<D3D12_RESOURCE_BARRIER> inBarriers, outBarriers;
+    inBarriers.reserve(rscs_.size());
+    outBarriers.reserve(rscs_.size());
+
+    for(auto &p : rscs_)
     {
-        FrameGraphPassNode *begNode = nullptr;
-        FrameGraphPassNode *endNode = nullptr;
-    };
+        auto &r     = p.second;
+        auto d3dRsc = rscNodes[r.rscIdx.idx].getD3DResource();
 
-    void restart();
+        if(r.doInitialTransition)
+        {
+            inBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+                d3dRsc, r.beforeState, r.inState));
+        }
 
-    TaskRange requestTask();
+        if(r.doFinalTransition)
+        {
+            outBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+                d3dRsc, r.inState, r.afterState));
+        }
 
-    void submitTask(
-        TaskRange                         taskRange,
-        ComPtr<ID3D12GraphicsCommandList> cmdList);
+        // create descriptor
 
-    void waitForAllTasksFinished();
+        match_variant(r.viewDesc,
+            [&](const SRV &srv)
+        {
+            r.descriptor = allGPUDescs[r.descIdx];
+            device->CreateShaderResourceView(
+                d3dRsc, &srv.desc, r.descriptor);
+        },
+            [&](const UAV &uav)
+        {
+            r.descriptor = allGPUDescs[r.descIdx];
+            device->CreateUnorderedAccessView(
+                d3dRsc, nullptr, &uav.desc, r.descriptor);
+        },
+            [&](const RTV &rtv)
+        {
+            r.descriptor = allRTVDescs[r.descIdx];
+            device->CreateRenderTargetView(
+                d3dRsc, &rtv.desc, r.descriptor);
+        },
+            [&](const DSV &dsv)
+        {
+            r.descriptor = allDSVDescs[r.descIdx];
+            device->CreateDepthStencilView(
+                d3dRsc, &dsv.desc, r.descriptor);
+        },
+            [&](const std::monostate &) {});
+    }
 
-private:
+    cmdList->ResourceBarrier(
+        static_cast<UINT>(inBarriers.size()), inBarriers.data());
 
-    std::vector<FrameGraphPassNode> &passNodes_;
-    CommandListPool                 &cmdListPool_;
-    ComPtr<ID3D12CommandQueue>       cmdQueue_;
+    // pass func context
 
-    enum class TaskState
-    {
-        NotFinished,
-        Pending,
-        Submitted
-    };
+    FrameGraphPassContext passCtx(
+        rscNodes, *this, allGPUDescs, allRTVDescs, allDSVDescs);
 
-    struct Task
-    {
-        TaskState taskState = TaskState::NotFinished;
-        size_t nodeCount = 0;
-        ComPtr<ID3D12GraphicsCommandList> cmdList;
-    };
+    // call pass func
 
-    std::mutex tasksMutex_;
-    std::vector<Task> tasks_;
+    assert(passFunc_);
+    passFunc_(cmdList, passCtx);
 
-    size_t dispatchedNodeCount_;
-    size_t finishedNodeCount_;
+    // final state transitions
 
-    std::condition_variable waitingForAllTasks_;
-};
+    cmdList->ResourceBarrier(
+        static_cast<UINT>(outBarriers.size()), outBarriers.data());
+
+    return passCtx.isCmdListSubmissionRequested();
+}
+
+inline FrameGraphPassContext::FrameGraphPassContext(
+    const std::vector<FrameGraphResourceNode> &rscNodes,
+    const FrameGraphPassNode                  &passNode,
+    DescriptorRange                            allGPUDescs,
+    DescriptorRange                            allRTVDescs,
+    DescriptorRange                            allDSVDescs) noexcept
+    : requestCmdListSubmission_(false), rscNodes_(rscNodes), passNode_(passNode),
+      allGPUDescs_(allGPUDescs), allRTVDescs_(allRTVDescs), allDSVDescs_(allDSVDescs)
+{
+    
+}
+
+inline FrameGraphPassContext::Resource FrameGraphPassContext::getResource(
+    ResourceIndex index) const
+{
+    const auto it = passNode_.rscs_.find(index);
+    if(it == passNode_.rscs_.end())
+        return {};
+
+    Resource ret;
+    ret.rsc          = rscNodes_[index.idx].getD3DResource();
+    ret.currentState = it->second.afterState;
+    ret.descriptor   = it->second.descriptor;
+    return ret;
+}
+
+inline void FrameGraphPassContext::requestCmdListSubmission() noexcept
+{
+    requestCmdListSubmission_ = true;
+}
+
+inline bool FrameGraphPassContext::isCmdListSubmissionRequested() const noexcept
+{
+    return requestCmdListSubmission_;
+}
 
 AGZ_D3D12_FG_END
-
-#include "./impl/graph.inl"

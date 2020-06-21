@@ -57,7 +57,7 @@ void run()
 
     Window window(windowDesc);
 
-    auto device   = window.getDevice();
+    auto device = window.getDevice();
 
     // cmd list
 

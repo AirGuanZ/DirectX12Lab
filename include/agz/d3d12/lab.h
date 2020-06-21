@@ -11,6 +11,10 @@
 #include <agz/d3d12/descriptor/rawDescriptorHeap.h>
 #include <agz/d3d12/descriptor/descriptorHeap.h>
 
+#include <agz/d3d12/framegraph/compiler.h>
+#include <agz/d3d12/framegraph/executer.h>
+#include <agz/d3d12/framegraph/graph.h>
+#include <agz/d3d12/framegraph/scheduler.h>
 #include <agz/d3d12/framegraph/rootSignature.h>
 
 #include <agz/d3d12/framegraph/resourceView/depthStencilViewDesc.h>
@@ -28,6 +32,7 @@
 #include <agz/d3d12/pipeline/shader.h>
 
 #include <agz/d3d12/sync/cmdQueueWaiter.h>
+#include <agz/d3d12/sync/frameResourceFence.h>
 
 #include <agz/d3d12/texture/depthStencilBuffer.h>
 #include <agz/d3d12/texture/mipmap.h>

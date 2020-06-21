@@ -70,7 +70,7 @@ class DescriptorSubHeap : public misc::uncopyable_t
     container::interval_mgr_t<uint32_t> freeBlocks_;
 
     DescriptorIndex beg_;
-    DescriptorCount end_;
+    DescriptorIndex end_;
 
     void destroy();
 
@@ -102,6 +102,8 @@ public:
         DescriptorCount count);
 
     std::optional<Descriptor> allocSingle();
+
+    void freeAll();
 
     void freeSubHeap(DescriptorSubHeap &&subheap);
 
@@ -305,6 +307,11 @@ inline std::optional<Descriptor> DescriptorSubHeap::allocSingle()
 {
     auto orange = allocRange(1);
     return orange ? std::make_optional((*orange)[0]) : std::nullopt;
+}
+
+inline void DescriptorSubHeap::freeAll()
+{
+    initialize(rawHeap_, beg_, end_);
 }
 
 inline void DescriptorSubHeap::freeSubHeap(DescriptorSubHeap &&subheap)
