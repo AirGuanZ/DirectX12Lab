@@ -5,6 +5,7 @@
 #include <agz/d3d12/framegraph/resourceView/renderTargetViewDesc.h>
 #include <agz/d3d12/framegraph/resourceView/shaderResourceViewDesc.h>
 #include <agz/d3d12/framegraph/resourceView/unorderedAccessViewDesc.h>
+#include <agz/d3d12/framegraph/resourceBinding.h>
 #include <agz/utility/misc.h>
 
 AGZ_D3D12_FG_BEGIN
@@ -55,6 +56,15 @@ public:
 
         DescriptorIndex descIdx = 0;
         mutable Descriptor descriptor;
+
+        struct RTB
+        {
+            bool isBound = false;
+            bool clear = false;
+            ClearColor clearColor;
+        };
+
+        RTB renderTargetBinding;
     };
 
     FrameGraphPassNode(
@@ -184,6 +194,20 @@ inline bool FrameGraphPassNode::execute(
 
         // create descriptor
 
+    }
+
+    cmdList->ResourceBarrier(
+        static_cast<UINT>(inBarriers.size()), inBarriers.data());
+
+    // create descriptors
+
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetHandles;
+
+    for(auto &p : rscs_)
+    {
+        auto &r = p.second;
+        auto d3dRsc = rscNodes[r.rscIdx.idx].getD3DResource();
+        
         match_variant(r.viewDesc,
             [&](const SRV &srv)
         {
@@ -202,6 +226,18 @@ inline bool FrameGraphPassNode::execute(
             r.descriptor = allRTVDescs[r.descIdx];
             device->CreateRenderTargetView(
                 d3dRsc, &rtv.desc, r.descriptor);
+
+            if(r.renderTargetBinding.isBound)
+            {
+                renderTargetHandles.push_back(r.descriptor);
+                if(r.renderTargetBinding.clear)
+                {
+                    cmdList->ClearRenderTargetView(
+                        r.descriptor,
+                        &r.renderTargetBinding.clearColor.r,
+                        0, nullptr);
+                }
+            }
         },
             [&](const DSV &dsv)
         {
@@ -212,8 +248,21 @@ inline bool FrameGraphPassNode::execute(
             [&](const std::monostate &) {});
     }
 
-    cmdList->ResourceBarrier(
-        static_cast<UINT>(inBarriers.size()), inBarriers.data());
+    // bind render target
+
+    if(!renderTargetHandles.empty())
+    {
+        cmdList->OMSetRenderTargets(
+            static_cast<UINT>(renderTargetHandles.size()),
+            renderTargetHandles.data(),
+            false,
+            nullptr);
+    }
+    else
+    {
+        cmdList->OMSetRenderTargets(
+            0, nullptr, false, nullptr);
+    }
 
     // pass func context
 

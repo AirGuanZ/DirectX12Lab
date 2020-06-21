@@ -15,15 +15,7 @@ namespace detail
     inline void _initRTB(
         RenderTargetBinding &rtb, const RTV &rtv)
     {
-        assert(!rtb.rtv);
         rtb.rtv = rtv;
-    }
-
-    inline void _initRTB(
-        RenderTargetBinding &rtb, ResourceIndex rsc) noexcept
-    {
-        assert(!rtb.rtv);
-        rtb.rsc = rsc;
     }
 
     inline void _initDSB(
@@ -41,7 +33,7 @@ namespace detail
     }
 
     inline void _initDSB(
-            DepthStencilBinding &dsb, ResourceIndex rsc) noexcept
+        DepthStencilBinding &dsb, ResourceIndex rsc) noexcept
     {
         assert(!dsb.dsv);
         dsb.rsc = rsc;
@@ -52,7 +44,7 @@ namespace detail
 template<typename ... Args>
 RenderTargetBinding::RenderTargetBinding(
     const Args &... args) noexcept
-    : clearColor(false)
+    : rtv(RESOURCE_NIL), clearColor(false)
 {
     InvokeAll([&] { detail::_initRTB(*this, args); }...);
 }

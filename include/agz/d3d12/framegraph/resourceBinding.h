@@ -7,9 +7,9 @@
 
 AGZ_D3D12_FG_BEGIN
 
-struct ClearColor : math::color4b
+struct ClearColor : math::color4f
 {
-    using math::color4b::color4b;
+    using math::color4f::color4f;
 };
 
 struct ClearDepthStencil
@@ -23,9 +23,7 @@ struct RenderTargetBinding
     template<typename...Args>
     explicit RenderTargetBinding(const Args &...args) noexcept;
 
-    // only one of rsc & rtv can be non-nil
-    std::optional<ResourceIndex> rsc;
-    std::optional<RTV> rtv;
+    RTV rtv;
 
     bool clearColor;
     ClearColor clearColorValue;

@@ -60,17 +60,14 @@ void run()
         graph.addPass(
             [&](ID3D12GraphicsCommandList *cmdList,
                 fg::FrameGraphPassContext &ctx)
-        {
-            const auto rtRsc = ctx.getResource(rtIdx);
-
-            cmdList->OMSetRenderTargets(
-                1, &rtRsc.descriptor.getCPUHandle(), false, nullptr);
-
-            const float CLEAR_COLOR[4] = { 0, 1, 1, 0 };
-            cmdList->ClearRenderTargetView(
-                rtRsc.descriptor, CLEAR_COLOR, 0, nullptr);
-        },
-            fg::Tex2DRTV(rtIdx));
+            {
+                // do nothing
+            },
+            fg::RenderTargetBinding
+            {
+                fg::Tex2DRTV(rtIdx),
+                fg::ClearColor{ 0, 1, 1, 0 }
+            });
 
         graph.compile();
         graph.execute();

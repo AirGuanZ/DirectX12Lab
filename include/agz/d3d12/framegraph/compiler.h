@@ -55,6 +55,15 @@ public:
             ViewDesc viewDesc;
 
             int idxInRscUsers = -1;
+
+            struct RTB
+            {
+                bool bound = false;
+                bool clear = false;
+                ClearColor clearColor;
+            };
+
+            RTB renderTargetBinding;
         };
 
         FrameGraphPassFunc passFunc;
@@ -236,6 +245,22 @@ namespace detail
         rsc.idx      = dsv.rsc;
         rsc.inState  = D3D12_RESOURCE_STATE_DEPTH_WRITE;
         rsc.viewDesc = dsv;
+        passNode.rscs.push_back(rsc);
+    }
+
+    inline void _initCompilerRP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        const RenderTargetBinding &rtb)
+    {
+        FrameGraphCompiler::CompilerPassNode::RscInPass rsc;
+        rsc.idx      = rtb.rtv.rsc;
+        rsc.inState  = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        rsc.viewDesc = rtb.rtv;
+
+        rsc.renderTargetBinding.bound      = true;
+        rsc.renderTargetBinding.clear      = rtb.clearColor;
+        rsc.renderTargetBinding.clearColor = rtb.clearColorValue;
+
         passNode.rscs.push_back(rsc);
     }
 
@@ -435,6 +460,13 @@ inline FrameGraphData FrameGraphCompiler::compile(
             },
                 [&](const std::monostate &) { }
             );
+
+            passRsc.renderTargetBinding =
+            {
+                rscUsage.renderTargetBinding.bound,
+                rscUsage.renderTargetBinding.clear,
+                rscUsage.renderTargetBinding.clearColor
+            };
 
             passRscs[rscUsage.idx] = passRsc;
         }
