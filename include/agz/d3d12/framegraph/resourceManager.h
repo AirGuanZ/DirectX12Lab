@@ -34,9 +34,9 @@ public:
     ~ResourceAllocator();
 
     ComPtr<ID3D12Resource> allocResource(
-        const ResourceDesc &desc,
-        D3D12_RESOURCE_STATES      expectedInitialState,
-        D3D12_RESOURCE_STATES     &actualInitialState);
+        const ResourceDesc    &desc,
+        D3D12_RESOURCE_STATES  expectedInitialState,
+        D3D12_RESOURCE_STATES &actualInitialState);
 
     void freeResource(
         ComPtr<ID3D12Resource> rsc,

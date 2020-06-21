@@ -75,3 +75,9 @@ Render a triangle mesh.
 * Gaussian Blur with compute shader
 
 ![pic](./screenshots/07_compute.png)
+
+## 08.frame graph (WIP)
+
+* Use simple frame graph to handle resource state transitions and descriptor management
+
+![pic](./screenshots/08_framegraph.png)

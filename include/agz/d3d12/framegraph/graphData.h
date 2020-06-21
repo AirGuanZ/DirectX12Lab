@@ -114,6 +114,16 @@ private:
     DescriptorRange allDSVDescs_;
 };
 
+struct FrameGraphData
+{
+    std::vector<FrameGraphPassNode>     passNodes;
+    std::vector<FrameGraphResourceNode> rscNodes;
+
+    DescriptorIndex gpuDescCount = 0;
+    DescriptorIndex rtvDescCount = 0;
+    DescriptorIndex dsvDescCount = 0;
+};
+
 inline FrameGraphResourceNode::FrameGraphResourceNode(
     bool isExternal, ComPtr<ID3D12Resource> d3dRsc)
     : isExternal_(isExternal), d3dRsc_(d3dRsc)

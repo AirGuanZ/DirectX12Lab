@@ -1,6 +1,6 @@
 #pragma once
 
-#include <agz/d3d12/framegraph/graph.h>
+#include <agz/d3d12/framegraph/graphData.h>
 
 AGZ_D3D12_FG_BEGIN
 

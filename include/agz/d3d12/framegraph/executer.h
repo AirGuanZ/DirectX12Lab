@@ -1,7 +1,7 @@
 #pragma once
 
 #include <agz/d3d12/framegraph/cmdListPool.h>
-#include <agz/d3d12/framegraph/compiler.h>
+#include <agz/d3d12/framegraph/graphData.h>
 #include <agz/d3d12/framegraph/scheduler.h>
 #include <agz/utility/thread.h>
 
@@ -17,7 +17,8 @@ public:
     void startFrame(int frameIndex);
 
     void execute(
-        FrameGraphCompiler::CompileResult &graph,
+        ID3D12DescriptorHeap              *gpuRawHeap,
+        FrameGraphData                    &graph,
         DescriptorRange                    allGPUDescs,
         DescriptorRange                    allRTVDescs,
         DescriptorRange                    allDSVDescs,
@@ -51,7 +52,8 @@ inline void FrameGraphExecuter::startFrame(int frameIndex)
 }
 
 inline void FrameGraphExecuter::execute(
-    FrameGraphCompiler::CompileResult &graph,
+    ID3D12DescriptorHeap             *gpuRawHeap,
+    FrameGraphData                    &graph,
     DescriptorRange                    allGPUDescs,
     DescriptorRange                    allRTVDescs,
     DescriptorRange                    allDSVDescs,
@@ -75,6 +77,9 @@ inline void FrameGraphExecuter::execute(
             return;
 
         auto cmdList = cmdListPool_.requireUnusedCommandList(threadIndex);
+        if(gpuRawHeap)
+            cmdList->SetDescriptorHeaps(1, &gpuRawHeap);
+
         for(auto n = task.begNode; n != task.endNode; ++n)
         {
             n->execute(
@@ -82,6 +87,7 @@ inline void FrameGraphExecuter::execute(
                 allGPUDescs, allRTVDescs, allDSVDescs,
                 cmdList.Get());
         }
+
         cmdList->Close();
 
         {

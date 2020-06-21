@@ -15,11 +15,29 @@ void run()
     auto device = window.getDevice();
 
     FrameResourceFence frameFence(device, window.getImageCount());
-    fg::FrameGraphExecuter executer(device, 1, window.getImageCount());
 
-    fg::ResourceAllocator rscAlloc(device);
+    DescriptorHeap rtvHeap;
+    rtvHeap.initialize(
+        device, 100, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false);
 
-    std::vector<DescriptorHeap> rtvHeap(3);
+    DescriptorHeap dsvHeap;
+    dsvHeap.initialize(
+        device, 100, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false);
+
+    DescriptorHeap gpuHeap;
+    gpuHeap.initialize(
+        device, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
+
+    auto rtvGraphHeap = *rtvHeap.allocSubHeap(100);
+    auto dsvGraphHeap = *dsvHeap.allocSubHeap(100);
+    auto gpuGraphHeap = *gpuHeap.allocSubHeap(100);
+
+    fg::FrameGraph graph(
+        device, &rtvGraphHeap, &dsvGraphHeap, &gpuGraphHeap,
+        window.getCommandQueue(), 3, window.getImageCount());
+
+    window.attach(std::make_unique<WindowPreResizeHandler>(
+        [&] { graph.restart(); }));
 
     while(!window.getCloseFlag())
     {
@@ -30,16 +48,16 @@ void run()
             window.setCloseFlag(true);
 
         frameFence.startFrame(window.getCurrentImageIndex());
-        executer.startFrame(window.getCurrentImageIndex());
+        graph.startFrame(window.getCurrentImageIndex());
 
-        fg::FrameGraphCompiler compiler;
+        graph.newGraph();
 
-        const auto rtIdx = compiler.addExternalResource(
+        const auto rtIdx = graph.addExternalResource(
             window.getCurrentImage(),
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_PRESENT);
 
-        compiler.addPass(
+        graph.addPass(
             [&](ID3D12GraphicsCommandList *cmdList,
                 fg::FrameGraphPassContext &ctx)
         {
@@ -54,18 +72,12 @@ void run()
         },
             fg::Tex2DRTV(rtIdx));
 
-        auto graph = compiler.compile(device, rscAlloc);
-
-        rtvHeap[window.getCurrentImageIndex()].initialize(
-            device, graph.rtvDescCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false);
-        auto rtvRange = *rtvHeap[window.getCurrentImageIndex()]
-                            .allocRange(graph.rtvDescCount);
-
-        executer.execute(
-            graph, {}, rtvRange, {}, window.getCommandQueue());
+        graph.compile();
+        graph.execute();
 
         window.present();
         frameFence.endFrame(window.getCommandQueue());
+        graph.endFrame();
     }
 
     window.waitCommandQueueIdle();

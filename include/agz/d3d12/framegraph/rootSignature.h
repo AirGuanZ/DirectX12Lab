@@ -4,7 +4,7 @@
 
 #include <agz/d3d12/framegraph/resourceView/descriptorTableRangeDesc.h>
 #include <agz/d3d12/framegraph/resourceView/staticSamplerDesc.h>
-#include <agz/d3d12/framegraph/graph.h>
+#include <agz/d3d12/framegraph/graphData.h>
 #include <agz/utility/misc.h>
 #include <agz/utility/string.h>
 

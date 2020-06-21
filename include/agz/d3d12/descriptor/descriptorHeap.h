@@ -95,6 +95,8 @@ public:
 
     bool isAvailable() const noexcept;
 
+    ID3D12DescriptorHeap *getRawHeap() const noexcept;
+
     std::optional<DescriptorSubHeap> allocSubHeap(
         DescriptorCount subHeapSize);
 
@@ -130,7 +132,7 @@ public:
 
     void destroy();
 
-    ID3D12DescriptorHeap *getRawHeap() const noexcept;
+    using DescriptorSubHeap::getRawHeap;
 
     using DescriptorSubHeap::allocSubHeap;
     using DescriptorSubHeap::allocRange;
@@ -281,6 +283,11 @@ inline bool DescriptorSubHeap::isAvailable() const noexcept
     return rawHeap_ != nullptr;
 }
 
+inline ID3D12DescriptorHeap *DescriptorSubHeap::getRawHeap() const noexcept
+{
+    return rawHeap_->getHeap();
+}
+
 inline std::optional<DescriptorSubHeap> DescriptorSubHeap::allocSubHeap(
     DescriptorCount subHeapSize)
 {
@@ -365,11 +372,6 @@ inline void DescriptorHeap::destroy()
 {
     DescriptorSubHeap::destroy();
     rawHeap_ = RawDescriptorHeap();
-}
-
-inline ID3D12DescriptorHeap *DescriptorHeap::getRawHeap() const noexcept
-{
-    return rawHeap_.getHeap();
 }
 
 inline DescriptorSubHeap &DescriptorHeap::getRootSubheap() noexcept

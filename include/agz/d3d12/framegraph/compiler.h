@@ -2,12 +2,15 @@
 
 #include <d3d12.h>
 
-#include <agz/d3d12/framegraph/graph.h>
+#include <agz/d3d12/framegraph/graphData.h>
 #include <agz/d3d12/framegraph/resourceBinding.h>
 #include <agz/d3d12/framegraph/resourceDesc.h>
 #include <agz/d3d12/framegraph/resourceManager.h>
+#include <agz/d3d12/sync/resourceReleaser.h>
 
 AGZ_D3D12_FG_BEGIN
+
+using ResourceReleaser = d3d12::ResourceReleaser;
 
 class FrameGraphCompiler
 {
@@ -83,19 +86,10 @@ public:
     template<typename...Args>
     PassIndex addPass(FrameGraphPassFunc passFunc, Args &&...args);
 
-    struct CompileResult
-    {
-        std::vector<FrameGraphPassNode>     passNodes;
-        std::vector<FrameGraphResourceNode> rscNodes;
-
-        DescriptorIndex gpuDescCount = 0;
-        DescriptorIndex rtvDescCount = 0;
-        DescriptorIndex dsvDescCount = 0;
-    };
-
-    CompileResult compile(
+    FrameGraphData compile(
         ID3D12Device      *device,
-        ResourceAllocator &rscAlloc);
+        ResourceAllocator &rscAlloc,
+        ResourceReleaser  &rscReleaser);
 
 private:
 
@@ -265,11 +259,12 @@ PassIndex FrameGraphCompiler::addPass(
     return { idx };
 }
 
-inline FrameGraphCompiler::CompileResult FrameGraphCompiler::compile(
-    ID3D12Device                                 *device,
-    ResourceAllocator                            &rscAlloc)
+inline FrameGraphData FrameGraphCompiler::compile(
+    ID3D12Device      *device,
+    ResourceAllocator &rscAlloc,
+    ResourceReleaser  &rscReleaser)
 {
-    CompileResult ret;
+    FrameGraphData ret;
     ret.rscNodes.reserve(rscs_.size());
     ret.passNodes.reserve(passes_.size());
 
@@ -324,6 +319,8 @@ inline FrameGraphCompiler::CompileResult FrameGraphCompiler::compile(
             d3dRsc = rscAlloc.allocResource(
                 { tn.desc.desc, clear, clearValue },
                 tn.initialState, tempRsc.actualInitialState);
+
+            rscReleaser.add(rscAlloc, d3dRsc, tempRsc.users.back().second);
         },
             [&](const CompilerExternalResourceNode &en)
         {
