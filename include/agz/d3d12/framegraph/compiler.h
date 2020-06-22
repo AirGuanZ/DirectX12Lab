@@ -6,6 +6,7 @@
 #include <agz/d3d12/framegraph/resourceBinding.h>
 #include <agz/d3d12/framegraph/resourceDesc.h>
 #include <agz/d3d12/framegraph/resourceManager.h>
+#include <agz/d3d12/framegraph/viewport.h>
 #include <agz/d3d12/sync/resourceReleaser.h>
 
 AGZ_D3D12_FG_BEGIN
@@ -64,6 +65,12 @@ public:
         FrameGraphPassFunc passFunc;
 
         std::vector<RscInPass> rscs;
+
+        bool defaultViewport = true;
+        std::vector<D3D12_VIEWPORT> viewports;
+
+        bool defaultScissor = true;
+        std::vector<D3D12_RECT> scissors;
     };
 
     ResourceIndex addTransientResource(
@@ -273,6 +280,36 @@ namespace detail
         passNode.rscs.push_back(rsc);
     }
 
+    inline void _initCompilerRP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        const _internalNoViewport &)
+    {
+        passNode.defaultViewport = false;
+    }
+
+    inline void _initCompilerRP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        const Viewport &viewport)
+    {
+        passNode.defaultViewport = false;
+        passNode.viewports.push_back(viewport);
+    }
+
+    inline void _initCompilerRP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        const _internalNoScissor &)
+    {
+        passNode.defaultScissor = false;
+    }
+
+    inline void _initCompilerRP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        const Scissor &scissor)
+    {
+        passNode.defaultScissor = false;
+        passNode.scissors.push_back(scissor);
+    }
+
 } // namespace detail
 
 template<typename ... Args>
@@ -374,6 +411,9 @@ inline FrameGraphData FrameGraphCompiler::compile(
 
     // fill fg pass nodes
 
+    D3D12_RESOURCE_DESC firstRTDSDesc;
+    firstRTDSDesc.Width = 0;
+
     for(size_t i = 0; i < passes_.size(); ++i)
     {
         auto &pass = passes_[i];
@@ -393,7 +433,6 @@ inline FrameGraphData FrameGraphCompiler::compile(
             // state transitions
 
             // IMPROVE: elim unnecessary rsc transitions
-            passRsc.doInitialTransition = true;
 
             if(rscUsage.idxInRscUsers > 0)
             {
@@ -406,26 +445,20 @@ inline FrameGraphData FrameGraphCompiler::compile(
             passRsc.inState = rscUsage.inState;
 
             if(rscUsage.idxInRscUsers + 1 ==
-                    static_cast<int>(tempRsc.users.size()))
+                static_cast<int>(tempRsc.users.size()))
             {
                 const auto extNode = passNode.as_if<
                     CompilerExternalResourceNode>();
                 if(extNode && extNode->finalState != rscUsage.inState)
-                {
-                    passRsc.doFinalTransition = true;
-                    passRsc.afterState        = extNode->finalState;
-                }
+                    passRsc.afterState = extNode->finalState;
                 else
-                {
-                    passRsc.doFinalTransition = false;
-                    passRsc.afterState        = rscUsage.inState;
-                }
+                    passRsc.afterState = rscUsage.inState;
             }
             else
-            {
-                passRsc.doFinalTransition = false;
-                passRsc.afterState        = rscUsage.inState;
-            }
+                passRsc.afterState = rscUsage.inState;
+
+            passRsc.doInitialTransition = passRsc.beforeState != passRsc.inState;
+            passRsc.doFinalTransition   = passRsc.inState     != passRsc.afterState;
 
             // fill descriptor format
 
@@ -472,10 +505,61 @@ inline FrameGraphData FrameGraphCompiler::compile(
 
             passRsc.rtdsBinding = rscUsage.rtdsBinding;
 
+            if(!firstRTDSDesc.Width && !rscUsage.rtdsBinding.is<std::monostate>())
+            {
+                match_variant(rscUsage.viewDesc,
+                    [&](const RTV &rt)
+                {
+                    firstRTDSDesc = ret.rscNodes[rt.rsc.idx]
+                        .getD3DResource()->GetDesc();
+                },
+                    [&](const DSV &ds)
+                {
+                    firstRTDSDesc = ret.rscNodes[ds.rsc.idx]
+                        .getD3DResource()->GetDesc();
+                },
+                    [](const auto &) {});
+            }
+
             passRscs[rscUsage.idx] = passRsc;
         }
 
-        ret.passNodes.emplace_back(std::move(passRscs), pass.passFunc);
+        // viewport & scissor
+
+        FrameGraphPassNode::PassViewport vp;
+        if(pass.defaultViewport)
+        {
+            if(firstRTDSDesc.Width > 0)
+            {
+                D3D12_VIEWPORT defaultVP;
+                defaultVP.TopLeftX = 0;
+                defaultVP.TopLeftY = 0;
+                defaultVP.Width    = static_cast<float>(firstRTDSDesc.Width);
+                defaultVP.Height   = static_cast<float>(firstRTDSDesc.Height);
+                defaultVP.MinDepth = 0;
+                defaultVP.MaxDepth = 1;
+                vp.viewports = { defaultVP };
+            }
+        }
+        else
+            vp.viewports = pass.viewports;
+
+        if(pass.defaultScissor)
+        {
+            if(firstRTDSDesc.Width > 0)
+            {
+                D3D12_RECT defaultSc;
+                defaultSc.top    = 0;
+                defaultSc.left   = 0;
+                defaultSc.right  = static_cast<LONG>(firstRTDSDesc.Width);
+                defaultSc.bottom = static_cast<LONG>(firstRTDSDesc.Height);
+                vp.scissors = { defaultSc };
+            }
+        }
+        else
+            vp.scissors = pass.scissors;
+
+        ret.passNodes.emplace_back(std::move(passRscs), vp, pass.passFunc);
     }
 
     return ret;

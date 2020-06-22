@@ -17,6 +17,12 @@ namespace detail
         desc.SampleDesc = { ms.count, ms.quality };
     }
 
+    inline void _initRscDesc(
+        D3D12_RESOURCE_DESC &desc, D3D12_RESOURCE_FLAGS flags) noexcept
+    {
+        desc.Flags |= flags;
+    }
+
 } // namespace detail
 
 template<typename ... Args>

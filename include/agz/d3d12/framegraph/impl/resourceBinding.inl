@@ -59,7 +59,7 @@ RenderTargetBinding::RenderTargetBinding(
 template<typename ... Args>
 DepthStencilBinding::DepthStencilBinding(
     const Args &... args) noexcept
-    : clearDepth(false), clearStencil(false)
+    : dsv(RESOURCE_NIL), clearDepth(false), clearStencil(false)
 {
     InvokeAll([&] { detail::_initDSB(*this, args); }...);
 }

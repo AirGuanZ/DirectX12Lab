@@ -57,6 +57,8 @@ public:
         DescriptorIndex descIdx = 0;
         mutable Descriptor descriptor;
 
+        // render target & depth stencil binding
+
         struct RTB
         {
             bool clear = false;
@@ -75,8 +77,15 @@ public:
         RTDSBinding rtdsBinding;
     };
 
+    struct PassViewport
+    {
+        std::vector<D3D12_VIEWPORT> viewports;
+        std::vector<D3D12_RECT> scissors;
+    };
+
     FrameGraphPassNode(
         std::map<ResourceIndex, PassResource> rscs,
+        PassViewport                          passViewport,
         FrameGraphPassFunc                    passFunc) noexcept;
 
     bool execute(
@@ -92,6 +101,8 @@ private:
     friend class FrameGraphPassContext;
 
     std::map<ResourceIndex, PassResource> rscs_;
+
+    PassViewport viewport_;
 
     FrameGraphPassFunc passFunc_;
 };
@@ -163,8 +174,11 @@ inline ID3D12Resource *FrameGraphResourceNode::getD3DResource() const noexcept
 
 inline FrameGraphPassNode::FrameGraphPassNode(
     std::map<ResourceIndex, PassResource> rscs,
+    PassViewport                          passViewport,
     FrameGraphPassFunc                    passFunc) noexcept
-    : rscs_(std::move(rscs)), passFunc_(std::move(passFunc))
+    : rscs_(std::move(rscs)),
+      viewport_(passViewport),
+      passFunc_(std::move(passFunc))
 {
 
 }
@@ -212,6 +226,9 @@ inline bool FrameGraphPassNode::execute(
     std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> renderTargetHandles;
     std::optional<D3D12_CPU_DESCRIPTOR_HANDLE> depthStencilHandle;
 
+    D3D12_RESOURCE_DESC firstRTVOrDSVDesc;
+    firstRTVOrDSVDesc.Width = 0;
+
     for(auto &p : rscs_)
     {
         auto &r = p.second;
@@ -247,6 +264,12 @@ inline bool FrameGraphPassNode::execute(
                         &rtBinding->clearColor.r,
                         0, nullptr);
                 }
+
+                if(!firstRTVOrDSVDesc.Width)
+                {
+                    firstRTVOrDSVDesc = rscNodes[r.rscIdx.idx]
+                        .getD3DResource()->GetDesc();
+                }
             }
         },
             [&](const DSV &dsv)
@@ -273,6 +296,12 @@ inline bool FrameGraphPassNode::execute(
                         dsBinding->clearDethpStencil.depth,
                         dsBinding->clearDethpStencil.stencil,
                         0, nullptr);
+                }
+
+                if(!firstRTVOrDSVDesc.Width)
+                {
+                    firstRTVOrDSVDesc = rscNodes[r.rscIdx.idx]
+                        .getD3DResource()->GetDesc();
                 }
             }
         },
@@ -313,6 +342,16 @@ inline bool FrameGraphPassNode::execute(
                 0, nullptr, false, nullptr);
         }
     }
+
+    // viewport & scissor
+
+    cmdList->RSSetViewports(
+        static_cast<UINT>(viewport_.viewports.size()),
+        viewport_.viewports.data());
+
+    cmdList->RSSetScissorRects(
+        static_cast<UINT>(viewport_.scissors.size()),
+        viewport_.scissors.data());
 
     // pass func context
 

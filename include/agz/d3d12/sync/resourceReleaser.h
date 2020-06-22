@@ -98,7 +98,14 @@ inline ResourceReleaser::ResourceReleaser(ID3D12Device *device)
 inline ResourceReleaser::~ResourceReleaser()
 {
     for(auto &r : records_)
+    {
         fence_->SetEventOnCompletion(r.expectedFenceValue, nullptr);
+        match_variant(r.releaser,
+            [&](ObjRecord             &   ) {                },
+            [&](RscAllocRecord        &rar) { rar.release(); },
+            [&](DescriptorRangeRecord &drr) { drr.release(); },
+            [&](DescriptorHeapRecord  &dhr) { dhr.release(); });
+    }
 }
 
 inline void ResourceReleaser::collect()
