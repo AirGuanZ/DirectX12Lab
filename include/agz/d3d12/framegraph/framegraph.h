@@ -42,6 +42,19 @@ public:
         D3D12_RESOURCE_STATES    initialState,
         const ClearDepthStencil &clearDepthStencilValue,
         DXGI_FORMAT              clearFormat = DXGI_FORMAT_UNKNOWN);
+    
+    ResourceIndex addTransientResource(
+        const RscDesc        &rscDesc);
+
+    ResourceIndex addTransientResource(
+        const RscDesc        &rscDesc,
+        const ClearColor     &clearColorValue,
+        DXGI_FORMAT           clearFormat = DXGI_FORMAT_UNKNOWN);
+
+    ResourceIndex addTransientResource(
+        const RscDesc           &rscDesc,
+        const ClearDepthStencil &clearDepthStencilValue,
+        DXGI_FORMAT              clearFormat = DXGI_FORMAT_UNKNOWN);
 
     ResourceIndex addExternalResource(
         const ComPtr<ID3D12Resource> rscDesc,
@@ -194,6 +207,32 @@ inline ResourceIndex FrameGraph::addTransientResource(
 {
     return compiler_->addTransientResource(
         rscDesc, initialState, clearDepthStencilValue, clearFormat);
+}
+
+inline ResourceIndex FrameGraph::addTransientResource(
+    const RscDesc &rscDesc)
+{
+    return addTransientResource(rscDesc, D3D12_RESOURCE_STATE_COMMON);
+}
+
+inline ResourceIndex FrameGraph::addTransientResource(
+    const RscDesc        &rscDesc,
+    const ClearColor     &clearColorValue,
+    DXGI_FORMAT           clearFormat)
+{
+    return addTransientResource(
+        rscDesc, D3D12_RESOURCE_STATE_COMMON,
+        clearColorValue, clearFormat);
+}
+
+inline ResourceIndex FrameGraph::addTransientResource(
+    const RscDesc           &rscDesc,
+    const ClearDepthStencil &clearDepthStencilValue,
+    DXGI_FORMAT              clearFormat)
+{
+    return addTransientResource(
+        rscDesc, D3D12_RESOURCE_STATE_COMMON,
+        clearDepthStencilValue, clearFormat);
 }
 
 inline ResourceIndex FrameGraph::addExternalResource(

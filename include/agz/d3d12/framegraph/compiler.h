@@ -366,6 +366,7 @@ inline FrameGraphData FrameGraphCompiler::compile(
 
     // collect tempRscNode.users
     // count cpu/gpu descriptors
+    // fill rsc clear values
 
     for(size_t i = 0; i < passes_.size(); ++i)
     {
@@ -381,12 +382,77 @@ inline FrameGraphData FrameGraphCompiler::compile(
 
             tempRsc.users.push_back({ passIdx, rscUsage.inState });
 
-            match_variant(rscUsage.viewDesc,
-                [&](const _internalSRV &) { ++ret.gpuDescCount; },
-                [&](const _internalUAV &) { ++ret.gpuDescCount; },
-                [&](const _internalRTV &) { ++ret.rtvDescCount; },
-                [&](const _internalDSV &) { ++ret.dsvDescCount; },
-                [&](const std::monostate &) {});
+            if(auto tn = rscs_[rscUsage.idx.idx].as_if
+                <CompilerTransientResourceNode>(); tn)
+            {
+                if(tn->initialState == D3D12_RESOURCE_STATE_COMMON)
+                    tn->initialState = rscUsage.inState;
+
+                if(rscUsage.inState & D3D12_RESOURCE_STATE_RENDER_TARGET)
+                {
+                    tn->desc.desc.Flags |=
+                        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+                }
+
+                if(rscUsage.inState & D3D12_RESOURCE_STATE_DEPTH_WRITE)
+                {
+                    tn->desc.desc.Flags |=
+                        D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+                }
+
+                if(rscUsage.inState & D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+                {
+                    tn->desc.desc.Flags |=
+                        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+                }
+            }
+
+            const DXGI_FORMAT rtdsFmt = match_variant(rscUsage.viewDesc,
+                [&](const _internalSRV &)  { ++ret.gpuDescCount; return DXGI_FORMAT_UNKNOWN; },
+                [&](const _internalUAV &)  { ++ret.gpuDescCount; return DXGI_FORMAT_UNKNOWN; },
+                [&](const _internalRTV &r) { ++ret.rtvDescCount; return r.desc.Format; },
+                [&](const _internalDSV &d) { ++ret.dsvDescCount; return d.desc.Format; },
+                [&](const std::monostate &) { return DXGI_FORMAT_UNKNOWN; });
+            
+            // fill clear value
+
+            auto tn = rscs_[rscUsage.idx.idx]
+                .as_if<CompilerTransientResourceNode>();
+
+            if(!rscUsage.rtdsBinding.is<std::monostate>() &&
+                tn && !tn->clearColor && !tn->clearDepthStencil)
+            {
+                DXGI_FORMAT clearFormat;
+                if(rtdsFmt != DXGI_FORMAT_UNKNOWN)
+                    clearFormat = rtdsFmt;
+                else
+                    clearFormat = tn->desc.desc.Format;
+                assert(clearFormat != DXGI_FORMAT_UNKNOWN);
+
+                if(!isTypeless(clearFormat))
+                {
+                    if(auto rtb = rscUsage.rtdsBinding
+                        .as_if<FrameGraphPassNode::PassResource::RTB>();
+                        rtb)
+                    {
+                        tn->clearColor      = rtb->clear;
+                        tn->clearColorValue = rtb->clearColor;
+                        tn->clearFormat     = clearFormat;
+                    }
+                    else
+                    {
+                        assert(rscUsage.rtdsBinding.is<
+                            FrameGraphPassNode::PassResource::DSB>());
+                        auto &dsb = rscUsage.rtdsBinding.as<
+                            FrameGraphPassNode::PassResource::DSB>();
+
+                        tn->clearDepthStencil = dsb.clearDepth ||
+                            dsb.clearStencil;
+                        tn->clearDepthStencilValue = dsb.clearDethpStencil;
+                        tn->clearFormat = clearFormat;
+                    }
+                }
+            }
         }
     }
 
@@ -449,8 +515,6 @@ inline FrameGraphData FrameGraphCompiler::compile(
             
             // state transitions
 
-            // IMPROVE: elim unnecessary rsc transitions
-
             if(rscUsage.idxInRscUsers > 0)
             {
                 passRsc.beforeState =
@@ -476,28 +540,6 @@ inline FrameGraphData FrameGraphCompiler::compile(
             }
             else
                 passRsc.afterState = rscUsage.inState;
-
-            passRsc.doInitialTransition = passRsc.beforeState != passRsc.inState;
-            passRsc.doFinalTransition   = passRsc.inState     != passRsc.afterState;
-
-            // fill descriptor format
-
-            auto fillFmt = [&](DXGI_FORMAT &fmt)
-            {
-                if(fmt == DXGI_FORMAT_UNKNOWN)
-                {
-                    fmt = ret.rscNodes[passRsc.rscIdx.idx]
-                                .getD3DResource()->GetDesc().Format;
-                }
-            };
-
-            match_variant(
-                rscUsage.viewDesc,
-                [&](_internalSRV &view) { fillFmt(view.desc.Format); },
-                [&](_internalUAV &view) { fillFmt(view.desc.Format); },
-                [&](_internalRTV &view) { fillFmt(view.desc.Format); },
-                [&](_internalDSV &view) { fillFmt(view.desc.Format); },
-                [&](const std::monostate &) { });
 
             // assign descriptor
 
@@ -540,6 +582,25 @@ inline FrameGraphData FrameGraphCompiler::compile(
                 },
                     [](const auto &) {});
             }
+            
+            // fill descriptor format
+
+            auto fillFmt = [&](DXGI_FORMAT &fmt)
+            {
+                if(fmt == DXGI_FORMAT_UNKNOWN)
+                {
+                    fmt = ret.rscNodes[rscUsage.idx.idx]
+                        .getD3DResource()->GetDesc().Format;
+                }
+            };
+
+            match_variant(
+                rscUsage.viewDesc,
+                [&](_internalSRV &view) { fillFmt(view.desc.Format); },
+                [&](_internalUAV &view) { fillFmt(view.desc.Format); },
+                [&](_internalRTV &view) { fillFmt(view.desc.Format); },
+                [&](_internalDSV &view) { fillFmt(view.desc.Format); },
+                [&](const std::monostate &) {});
 
             passRscs[rscUsage.idx] = passRsc;
         }

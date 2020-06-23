@@ -314,12 +314,7 @@ void run()
         graph.newGraph();
 
         dsIdx = graph.addTransientResource(
-            Tex2DDesc{
-                DXGI_FORMAT_D24_UNORM_S8_UINT, W, H,
-                D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
-            },
-            D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            ClearDepthStencil{ 1, 0 });
+            Tex2DDesc{ DXGI_FORMAT_D24_UNORM_S8_UINT, W, H });
 
         rtIdx = graph.addExternalResource(
             window.getCurrentImage(),
@@ -327,28 +322,13 @@ void run()
             D3D12_RESOURCE_STATE_PRESENT);
 
         gPosIdx = graph.addTransientResource(
-            Tex2DDesc{
-                DXGI_FORMAT_R32G32B32A32_FLOAT, W, H,
-                D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
-            },
-            D3D12_RESOURCE_STATE_RENDER_TARGET,
-            ClearColor{ 0, 0, 0, 0 });
+            Tex2DDesc{ DXGI_FORMAT_R32G32B32A32_FLOAT, W, H });
 
         gNorIdx = graph.addTransientResource(
-            Tex2DDesc{
-                DXGI_FORMAT_R32G32B32A32_FLOAT, W, H,
-                D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
-            },
-            D3D12_RESOURCE_STATE_RENDER_TARGET,
-            ClearColor{ 0, 0, 0, 0 });
+            Tex2DDesc{ DXGI_FORMAT_R32G32B32A32_FLOAT, W, H });
 
         gColorIdx = graph.addTransientResource(
-            Tex2DDesc{
-                DXGI_FORMAT_R8G8B8A8_UNORM, W, H,
-                D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
-            },
-            D3D12_RESOURCE_STATE_RENDER_TARGET,
-            ClearColor{ 0, 0, 0, 0 });
+            Tex2DDesc{ DXGI_FORMAT_R8G8B8A8_UNORM, W, H });
 
         graph.addPass(
             [&](ID3D12GraphicsCommandList *cmdList,

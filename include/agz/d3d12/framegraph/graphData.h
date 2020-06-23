@@ -44,9 +44,6 @@ public:
     {
         ResourceIndex rscIdx;
 
-        bool doInitialTransition = false;
-        bool doFinalTransition   = false;
-
         D3D12_RESOURCE_STATES beforeState  = {};
         D3D12_RESOURCE_STATES inState      = {};
         D3D12_RESOURCE_STATES afterState   = {};
@@ -216,13 +213,13 @@ inline bool FrameGraphPassNode::execute(
         auto &r     = p.second;
         auto d3dRsc = rscNodes[r.rscIdx.idx].getD3DResource();
 
-        if(r.doInitialTransition)
+        if(r.beforeState != r.inState)
         {
             inBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
                 d3dRsc, r.beforeState, r.inState));
         }
 
-        if(r.doFinalTransition)
+        if(r.inState != r.afterState)
         {
             outBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
                 d3dRsc, r.inState, r.afterState));
