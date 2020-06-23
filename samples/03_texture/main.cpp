@@ -240,7 +240,7 @@ void run()
     DescriptorHeap descHeap;
     descHeap.initialize(device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-    auto srv = *descHeap.allocSingle();
+    auto srv = descHeap.allocSingle();
     tex.createShaderResourceView(srv);
 
     // camera

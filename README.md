@@ -76,8 +76,8 @@ Render a triangle mesh.
 
 ![pic](./screenshots/07_compute.png)
 
-## 08.frame graph (WIP)
+## 08.frame graph
 
-* Use simple frame graph to handle resource state transitions and descriptor management
+* Use framegraph to impl a simple deferred renderer
 
 ![pic](./screenshots/08_framegraph.png)

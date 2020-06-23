@@ -4,7 +4,6 @@
 
 #include <agz/d3d12/framegraph/resourceView/descriptorTableRangeDesc.h>
 #include <agz/d3d12/framegraph/resourceView/staticSamplerDesc.h>
-#include <agz/d3d12/framegraph/graphData.h>
 #include <agz/utility/misc.h>
 #include <agz/utility/string.h>
 
@@ -44,9 +43,6 @@ struct DescriptorTable
     template<typename...Args>
     explicit DescriptorTable(D3D12_SHADER_VISIBILITY vis, Args&&...args);
 
-    template<typename OutIt>
-    void collectUsedResources(OutIt outIt) const;
-
     D3D12_SHADER_VISIBILITY vis;
 
     using DescriptorRange = misc::variant_t<
@@ -62,9 +58,6 @@ struct RootSignature
     template<typename...Args>
     explicit RootSignature(
         D3D12_ROOT_SIGNATURE_FLAGS flags, Args&&...args);
-
-    template<typename OutIt>
-    void collectUsedResources(OutIt outIt) const;
 
     using RootParameter = misc::variant_t<
         ConstantBufferView,
@@ -101,64 +94,6 @@ DescriptorTable::DescriptorTable(D3D12_SHADER_VISIBILITY vis, Args &&... args)
     : vis(vis)
 {
     InvokeAll([&] { ranges.push_back(std::forward<Args>(args)); }...);
-
-    // check srv scope based on vis
-
-    auto isSRVScopeCompatible = [&](SRVScope scope)
-    {
-        switch(scope)
-        {
-        case PixelSRV:
-            return vis == D3D12_SHADER_VISIBILITY_ALL ||
-                   vis == D3D12_SHADER_VISIBILITY_PIXEL;
-        case NonPixelSRV:
-            return vis != D3D12_SHADER_VISIBILITY_PIXEL;
-        default:
-            return true;
-        }
-    };
-
-    for(auto &r : ranges)
-    {
-        match_variant(r,
-            [&](SRVRange &srvr)
-        {
-            if(srvr.singleSRV.rsc.isNil())
-                return;
-            if(!isSRVScopeCompatible(srvr.singleSRV.scope))
-            {
-                throw D3D12LabException(
-                    "uncompatible dt visibility and srv scope");
-            }
-
-            if(srvr.singleSRV.scope == DefaultSRVScope)
-            {
-                if(vis == D3D12_SHADER_VISIBILITY_PIXEL)
-                    srvr.singleSRV.scope = PixelSRV;
-            }
-        },
-            [&](const auto &) {});
-    }
-}
-
-template<typename OutIt>
-void DescriptorTable::collectUsedResources(OutIt outIt) const
-{
-    for(auto &range : ranges)
-    {
-        match_variant(range,
-            [&](const SRVRange &srvr)
-        {
-            if(!srvr.singleSRV.rsc.isNil())
-                *outIt++ = srvr.singleSRV.rsc;
-        },
-            [&](const UAVRange &uavr)
-        {
-            if(!uavr.singleUAV.rsc.isNil())
-                *outIt++ = uavr.singleUAV.rsc;
-        },
-            [](auto &) {});
-    }
 }
 
 namespace detail
@@ -194,20 +129,6 @@ RootSignature::RootSignature(D3D12_ROOT_SIGNATURE_FLAGS flags, Args &&... args)
     {
         detail::_initRootSignature(*this, std::forward<Args>(args));
     }...);
-}
-
-template<typename OutIt>
-void RootSignature::collectUsedResources(OutIt outIt) const
-{
-    for(auto &param : rootParameters)
-    {
-        match_variant(param,
-            [&](const DescriptorTable &dt)
-        {
-            dt.collectUsedResources(outIt);
-        },
-            [](auto &) {});
-    }
 }
 
 inline D3D12_ROOT_PARAMETER ConstantBufferView::toRootParameter() const

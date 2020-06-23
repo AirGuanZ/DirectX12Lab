@@ -13,7 +13,7 @@ namespace detail
     }
 
     inline void _initRTB(
-        RenderTargetBinding &rtb, const RTV &rtv)
+        RenderTargetBinding &rtb, const _internalRTV &rtv)
     {
         rtb.rtv = rtv;
     }
@@ -41,7 +41,7 @@ namespace detail
     }
 
     inline void _initDSB(
-        DepthStencilBinding &dsb, const DSV &dsv)
+        DepthStencilBinding &dsb, const _internalDSV &dsv)
     {
         dsb.dsv = dsv;
     }

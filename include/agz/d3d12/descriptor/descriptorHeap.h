@@ -97,13 +97,21 @@ public:
 
     ID3D12DescriptorHeap *getRawHeap() const noexcept;
 
-    std::optional<DescriptorSubHeap> allocSubHeap(
+    DescriptorSubHeap allocSubHeap(
         DescriptorCount subHeapSize);
 
-    std::optional<DescriptorRange> allocRange(
+    DescriptorRange allocRange(
         DescriptorCount count);
 
-    std::optional<Descriptor> allocSingle();
+    Descriptor allocSingle();
+
+    std::optional<DescriptorSubHeap> tryAllocSubHeap(
+        DescriptorCount subHeapSize);
+
+    std::optional<DescriptorRange> tryAllocRange(
+        DescriptorCount count);
+
+    std::optional<Descriptor> tryAllocSingle();
 
     void freeAll();
 
@@ -137,6 +145,10 @@ public:
     using DescriptorSubHeap::allocSubHeap;
     using DescriptorSubHeap::allocRange;
     using DescriptorSubHeap::allocSingle;
+
+    using DescriptorSubHeap::tryAllocSubHeap;
+    using DescriptorSubHeap::tryAllocRange;
+    using DescriptorSubHeap::tryAllocSingle;
 
     using DescriptorSubHeap::freeSubHeap;
     using DescriptorSubHeap::freeRange;
@@ -288,7 +300,24 @@ inline ID3D12DescriptorHeap *DescriptorSubHeap::getRawHeap() const noexcept
     return rawHeap_->getHeap();
 }
 
-inline std::optional<DescriptorSubHeap> DescriptorSubHeap::allocSubHeap(
+inline DescriptorSubHeap DescriptorSubHeap::allocSubHeap(
+    DescriptorCount subHeapSize)
+{
+    return *tryAllocSubHeap(subHeapSize);
+}
+
+inline DescriptorRange DescriptorSubHeap::allocRange(
+    DescriptorCount count)
+{
+    return *tryAllocRange(count);
+}
+
+inline Descriptor DescriptorSubHeap::allocSingle()
+{
+    return *tryAllocSingle();
+}
+
+inline std::optional<DescriptorSubHeap> DescriptorSubHeap::tryAllocSubHeap(
     DescriptorCount subHeapSize)
 {
     const auto obeg = freeBlocks_.alloc(subHeapSize);
@@ -301,7 +330,7 @@ inline std::optional<DescriptorSubHeap> DescriptorSubHeap::allocSubHeap(
     return std::make_optional(std::move(subheap));
 }
 
-inline std::optional<DescriptorRange> DescriptorSubHeap::allocRange(
+inline std::optional<DescriptorRange> DescriptorSubHeap::tryAllocRange(
     DescriptorCount count)
 {
     const auto obeg = freeBlocks_.alloc(count);
@@ -310,9 +339,9 @@ inline std::optional<DescriptorRange> DescriptorSubHeap::allocRange(
     return std::make_optional<DescriptorRange>(rawHeap_, *obeg, count);
 }
 
-inline std::optional<Descriptor> DescriptorSubHeap::allocSingle()
+inline std::optional<Descriptor> DescriptorSubHeap::tryAllocSingle()
 {
-    auto orange = allocRange(1);
+    auto orange = tryAllocRange(1);
     return orange ? std::make_optional((*orange)[0]) : std::nullopt;
 }
 

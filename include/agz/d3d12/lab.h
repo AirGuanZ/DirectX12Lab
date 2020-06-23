@@ -11,12 +11,9 @@
 #include <agz/d3d12/descriptor/rawDescriptorHeap.h>
 #include <agz/d3d12/descriptor/descriptorHeap.h>
 
-#include <agz/d3d12/framegraph/compiler.h>
-#include <agz/d3d12/framegraph/executer.h>
-#include <agz/d3d12/framegraph/graphData.h>
-#include <agz/d3d12/framegraph/scheduler.h>
-#include <agz/d3d12/framegraph/rootSignature.h>
 #include <agz/d3d12/framegraph/framegraph.h>
+#include <agz/d3d12/framegraph/pipelineState.h>
+#include <agz/d3d12/framegraph/rootSignature.h>
 
 #include <agz/d3d12/framegraph/resourceView/depthStencilViewDesc.h>
 #include <agz/d3d12/framegraph/resourceView/descriptorTableRangeDesc.h>

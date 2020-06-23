@@ -52,7 +52,7 @@ public:
             ResourceIndex idx;
             D3D12_RESOURCE_STATES inState = {};
 
-            using ViewDesc = misc::variant_t<std::monostate, SRV, UAV, RTV, DSV>;
+            using ViewDesc = misc::variant_t<std::monostate, _internalSRV, _internalUAV, _internalRTV, _internalDSV>;
             ViewDesc viewDesc;
 
             int idxInRscUsers = -1;
@@ -71,6 +71,9 @@ public:
 
         bool defaultScissor = true;
         std::vector<D3D12_RECT> scissors;
+
+        ComPtr<ID3D12RootSignature> rootSignature;
+        ComPtr<ID3D12PipelineState> pipelineState;
     };
 
     ResourceIndex addTransientResource(
@@ -208,7 +211,7 @@ namespace detail
 
     inline void _initCompilerRP(
         FrameGraphCompiler::CompilerPassNode &passNode,
-        const SRV &srv)
+        const _internalSRV &srv)
     {
         FrameGraphCompiler::CompilerPassNode::RscInPass rsc;
         rsc.idx      = srv.rsc;
@@ -219,7 +222,7 @@ namespace detail
 
     inline void _initCompilerRP(
         FrameGraphCompiler::CompilerPassNode &passNode,
-        const UAV &uav)
+        const _internalUAV &uav)
     {
         FrameGraphCompiler::CompilerPassNode::RscInPass rsc;
         rsc.idx      = uav.rsc;
@@ -230,7 +233,7 @@ namespace detail
 
     inline void _initCompilerRP(
         FrameGraphCompiler::CompilerPassNode &passNode,
-        const RTV &rtv)
+        const _internalRTV &rtv)
     {
         FrameGraphCompiler::CompilerPassNode::RscInPass rsc;
         rsc.idx      = rtv.rsc;
@@ -241,7 +244,7 @@ namespace detail
 
     inline void _initCompilerRP(
         FrameGraphCompiler::CompilerPassNode &passNode,
-        const DSV &dsv)
+        const _internalDSV &dsv)
     {
         FrameGraphCompiler::CompilerPassNode::RscInPass rsc;
         rsc.idx      = dsv.rsc;
@@ -310,6 +313,20 @@ namespace detail
         passNode.scissors.push_back(scissor);
     }
 
+    inline void _initCompilerRP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        ComPtr<ID3D12PipelineState> pipelineState)
+    {
+        passNode.pipelineState = std::move(pipelineState);
+    }
+
+    inline void _initCompilerRP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        ComPtr<ID3D12RootSignature> rootSignature)
+    {
+        passNode.rootSignature = std::move(rootSignature);
+    }
+
 } // namespace detail
 
 template<typename ... Args>
@@ -365,10 +382,10 @@ inline FrameGraphData FrameGraphCompiler::compile(
             tempRsc.users.push_back({ passIdx, rscUsage.inState });
 
             match_variant(rscUsage.viewDesc,
-                [&](const SRV &) { ++ret.gpuDescCount; },
-                [&](const UAV &) { ++ret.gpuDescCount; },
-                [&](const RTV &) { ++ret.rtvDescCount; },
-                [&](const DSV &) { ++ret.dsvDescCount; },
+                [&](const _internalSRV &) { ++ret.gpuDescCount; },
+                [&](const _internalUAV &) { ++ret.gpuDescCount; },
+                [&](const _internalRTV &) { ++ret.rtvDescCount; },
+                [&](const _internalDSV &) { ++ret.dsvDescCount; },
                 [&](const std::monostate &) {});
         }
     }
@@ -447,12 +464,15 @@ inline FrameGraphData FrameGraphCompiler::compile(
             if(rscUsage.idxInRscUsers + 1 ==
                 static_cast<int>(tempRsc.users.size()))
             {
-                const auto extNode = passNode.as_if<
-                    CompilerExternalResourceNode>();
-                if(extNode && extNode->finalState != rscUsage.inState)
-                    passRsc.afterState = extNode->finalState;
-                else
-                    passRsc.afterState = rscUsage.inState;
+                match_variant(passNode,
+                    [&](const CompilerExternalResourceNode &en)
+                {
+                    passRsc.afterState = en.finalState;
+                },
+                    [&](const CompilerTransientResourceNode &tn)
+                {
+                    passRsc.afterState = tempRsc.actualInitialState;
+                });
             }
             else
                 passRsc.afterState = rscUsage.inState;
@@ -473,10 +493,10 @@ inline FrameGraphData FrameGraphCompiler::compile(
 
             match_variant(
                 rscUsage.viewDesc,
-                [&](SRV &view) { fillFmt(view.desc.Format); },
-                [&](UAV &view) { fillFmt(view.desc.Format); },
-                [&](RTV &view) { fillFmt(view.desc.Format); },
-                [&](DSV &view) { fillFmt(view.desc.Format); },
+                [&](_internalSRV &view) { fillFmt(view.desc.Format); },
+                [&](_internalUAV &view) { fillFmt(view.desc.Format); },
+                [&](_internalRTV &view) { fillFmt(view.desc.Format); },
+                [&](_internalDSV &view) { fillFmt(view.desc.Format); },
                 [&](const std::monostate &) { });
 
             // assign descriptor
@@ -484,19 +504,19 @@ inline FrameGraphData FrameGraphCompiler::compile(
             passRsc.viewDesc = rscUsage.viewDesc;
 
             match_variant(rscUsage.viewDesc,
-                [&](const SRV &)
+                [&](const _internalSRV &)
             {
                 passRsc.descIdx = nextGPUDescIdx++;
             },
-                [&](const UAV &)
+                [&](const _internalUAV &)
             {
                 passRsc.descIdx = nextGPUDescIdx++;
             },
-                [&](const RTV &)
+                [&](const _internalRTV &)
             {
                 passRsc.descIdx = nextRTVDescIdx++;
             },
-                [&](const DSV &)
+                [&](const _internalDSV &)
             {
                 passRsc.descIdx = nextDSVDescIdx++;
             },
@@ -508,12 +528,12 @@ inline FrameGraphData FrameGraphCompiler::compile(
             if(!firstRTDSDesc.Width && !rscUsage.rtdsBinding.is<std::monostate>())
             {
                 match_variant(rscUsage.viewDesc,
-                    [&](const RTV &rt)
+                    [&](const _internalRTV &rt)
                 {
                     firstRTDSDesc = ret.rscNodes[rt.rsc.idx]
                         .getD3DResource()->GetDesc();
                 },
-                    [&](const DSV &ds)
+                    [&](const _internalDSV &ds)
                 {
                     firstRTDSDesc = ret.rscNodes[ds.rsc.idx]
                         .getD3DResource()->GetDesc();
@@ -559,7 +579,9 @@ inline FrameGraphData FrameGraphCompiler::compile(
         else
             vp.scissors = pass.scissors;
 
-        ret.passNodes.emplace_back(std::move(passRscs), vp, pass.passFunc);
+        ret.passNodes.emplace_back(
+            std::move(passRscs), vp, pass.passFunc,
+            pass.pipelineState, pass.rootSignature);
     }
 
     return ret;

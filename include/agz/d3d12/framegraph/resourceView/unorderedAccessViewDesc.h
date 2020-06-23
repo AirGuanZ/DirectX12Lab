@@ -6,16 +6,16 @@
 
 AGZ_D3D12_FG_BEGIN
 
-struct UAV
+struct _internalUAV
 {
-    explicit UAV(ResourceIndex rsc) noexcept;
+    explicit _internalUAV(ResourceIndex rsc) noexcept;
 
     ResourceIndex rsc;
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC desc;
 };
 
-struct Tex2DUAV : UAV
+struct Tex2DUAV : _internalUAV
 {
     // Args: Format
     //       MipmapSlice
@@ -25,7 +25,7 @@ struct Tex2DUAV : UAV
     Tex2DUAV(const Tex2DUAV &) = default;
 };
 
-struct Tex2DArrUAV : UAV
+struct Tex2DArrUAV : _internalUAV
 {
     // Args: Format
     //       MipmapSlice

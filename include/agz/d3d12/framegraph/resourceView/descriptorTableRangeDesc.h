@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-
 #include <d3d12.h>
 
 #include <agz/d3d12/framegraph/resourceView/shaderResourceViewDesc.h>
@@ -37,7 +35,7 @@ struct SRVRange
 
     D3D12_DESCRIPTOR_RANGE range;
 
-    SRV singleSRV;
+    //SRV singleSRV;
 };
 
 struct UAVRange
@@ -51,7 +49,7 @@ struct UAVRange
 
     D3D12_DESCRIPTOR_RANGE range;
 
-    UAV singleUAV;
+    //UAV singleUAV;
 };
 
 AGZ_D3D12_FG_END

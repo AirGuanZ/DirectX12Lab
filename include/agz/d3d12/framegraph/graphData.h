@@ -51,7 +51,12 @@ public:
         D3D12_RESOURCE_STATES inState      = {};
         D3D12_RESOURCE_STATES afterState   = {};
 
-        using ViewDesc = misc::variant_t<std::monostate, SRV, UAV, RTV, DSV>;
+        using ViewDesc = misc::variant_t<
+            std::monostate,
+            _internalSRV,
+            _internalUAV,
+            _internalRTV,
+            _internalDSV>;
         ViewDesc viewDesc;
 
         DescriptorIndex descIdx = 0;
@@ -86,7 +91,9 @@ public:
     FrameGraphPassNode(
         std::map<ResourceIndex, PassResource> rscs,
         PassViewport                          passViewport,
-        FrameGraphPassFunc                    passFunc) noexcept;
+        FrameGraphPassFunc                    passFunc,
+        ComPtr<ID3D12PipelineState>           pipelineState,
+        ComPtr<ID3D12RootSignature>           rootSignature) noexcept;
 
     bool execute(
         ID3D12Device                        *device,
@@ -105,6 +112,9 @@ private:
     PassViewport viewport_;
 
     FrameGraphPassFunc passFunc_;
+
+    ComPtr<ID3D12PipelineState> pipelineState_;
+    ComPtr<ID3D12RootSignature> rootSignature_;
 };
 
 class FrameGraphPassContext
@@ -175,10 +185,14 @@ inline ID3D12Resource *FrameGraphResourceNode::getD3DResource() const noexcept
 inline FrameGraphPassNode::FrameGraphPassNode(
     std::map<ResourceIndex, PassResource> rscs,
     PassViewport                          passViewport,
-    FrameGraphPassFunc                    passFunc) noexcept
+    FrameGraphPassFunc                    passFunc,
+    ComPtr<ID3D12PipelineState>           pipelineState,
+    ComPtr<ID3D12RootSignature>           rootSignature) noexcept
     : rscs_(std::move(rscs)),
       viewport_(passViewport),
-      passFunc_(std::move(passFunc))
+      passFunc_(std::move(passFunc)),
+      pipelineState_(std::move(pipelineState)),
+      rootSignature_(std::move(rootSignature))
 {
 
 }
@@ -213,13 +227,13 @@ inline bool FrameGraphPassNode::execute(
             outBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
                 d3dRsc, r.inState, r.afterState));
         }
-
-        // create descriptor
-
     }
 
-    cmdList->ResourceBarrier(
-        static_cast<UINT>(inBarriers.size()), inBarriers.data());
+    if(!inBarriers.empty())
+    {
+        cmdList->ResourceBarrier(
+            static_cast<UINT>(inBarriers.size()), inBarriers.data());
+    }
 
     // create descriptors
 
@@ -235,19 +249,19 @@ inline bool FrameGraphPassNode::execute(
         auto d3dRsc = rscNodes[r.rscIdx.idx].getD3DResource();
         
         match_variant(r.viewDesc,
-            [&](const SRV &srv)
+            [&](const _internalSRV &srv)
         {
             r.descriptor = allGPUDescs[r.descIdx];
             device->CreateShaderResourceView(
                 d3dRsc, &srv.desc, r.descriptor);
         },
-            [&](const UAV &uav)
+            [&](const _internalUAV &uav)
         {
             r.descriptor = allGPUDescs[r.descIdx];
             device->CreateUnorderedAccessView(
                 d3dRsc, nullptr, &uav.desc, r.descriptor);
         },
-            [&](const RTV &rtv)
+            [&](const _internalRTV &rtv)
         {
             r.descriptor = allRTVDescs[r.descIdx];
             device->CreateRenderTargetView(
@@ -272,7 +286,7 @@ inline bool FrameGraphPassNode::execute(
                 }
             }
         },
-            [&](const DSV &dsv)
+            [&](const _internalDSV &dsv)
         {
             r.descriptor = allDSVDescs[r.descIdx];
             device->CreateDepthStencilView(
@@ -353,6 +367,16 @@ inline bool FrameGraphPassNode::execute(
         static_cast<UINT>(viewport_.scissors.size()),
         viewport_.scissors.data());
 
+    // pipeline state
+
+    if(pipelineState_)
+        cmdList->SetPipelineState(pipelineState_.Get());
+
+    // root signature
+
+    if(rootSignature_)
+        cmdList->SetGraphicsRootSignature(rootSignature_.Get());
+
     // pass func context
 
     FrameGraphPassContext passCtx(
@@ -365,8 +389,11 @@ inline bool FrameGraphPassNode::execute(
 
     // final state transitions
 
-    cmdList->ResourceBarrier(
-        static_cast<UINT>(outBarriers.size()), outBarriers.data());
+    if(!outBarriers.empty())
+    {
+        cmdList->ResourceBarrier(
+            static_cast<UINT>(outBarriers.size()), outBarriers.data());
+    }
 
     return passCtx.isCmdListSubmissionRequested();
 }

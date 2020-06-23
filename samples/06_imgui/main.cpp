@@ -23,7 +23,7 @@ void run()
     rscHeap.initialize(
         device, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
-    auto imguiSRV = *rscHeap.allocSingle();
+    auto imguiSRV = rscHeap.allocSingle();
     ImGuiIntegration imgui(
         window, rscHeap.getRawHeap(), imguiSRV, imguiSRV);
 
@@ -46,7 +46,7 @@ void run()
 
     uploadTex.Reset();
 
-    auto texSRV = *rscHeap.allocSingle();
+    auto texSRV = rscHeap.allocSingle();
     tex.createShaderResourceView(texSRV);
 
     ImGui::FileBrowser fileBrowser;

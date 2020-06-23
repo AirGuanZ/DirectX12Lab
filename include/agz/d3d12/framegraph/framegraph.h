@@ -11,10 +11,10 @@ class FrameGraph
 public:
 
     FrameGraph(
-        ID3D12Device *device,
-        DescriptorSubHeap *subRTVHeap,
-        DescriptorSubHeap *subDSVHeap,
-        DescriptorSubHeap *subGPUHeap,
+        ID3D12Device       *device,
+        DescriptorSubHeap   subRTVHeap,
+        DescriptorSubHeap   subDSVHeap,
+        DescriptorSubHeap   subGPUHeap,
         ID3D12CommandQueue *cmdQueue,
         int threadCount,
         int frameCount);
@@ -64,9 +64,9 @@ private:
     ID3D12Device       *device_;
     ID3D12CommandQueue *cmdQueue_;
 
-    DescriptorSubHeap *subRTVHeap_;
-    DescriptorSubHeap *subDSVHeap_;
-    DescriptorSubHeap *subGPUHeap_;
+    DescriptorSubHeap subRTVHeap_;
+    DescriptorSubHeap subDSVHeap_;
+    DescriptorSubHeap subGPUHeap_;
 
     ResourceAllocator rscAllocator_;
     ResourceReleaser  graphReleaser_;
@@ -80,17 +80,17 @@ private:
 
 inline FrameGraph::FrameGraph(
     ID3D12Device       *device,
-    DescriptorSubHeap  *subRTVHeap,
-    DescriptorSubHeap  *subDSVHeap,
-    DescriptorSubHeap  *subGPUHeap,
+    DescriptorSubHeap   subRTVHeap,
+    DescriptorSubHeap   subDSVHeap,
+    DescriptorSubHeap   subGPUHeap,
     ID3D12CommandQueue *cmdQueue,
     int                 threadCount,
     int                 frameCount)
     : device_       (device),
       cmdQueue_     (cmdQueue),
-      subRTVHeap_   (subRTVHeap),
-      subDSVHeap_   (subDSVHeap),
-      subGPUHeap_   (subGPUHeap),
+      subRTVHeap_   (std::move(subRTVHeap)),
+      subDSVHeap_   (std::move(subDSVHeap)),
+      subGPUHeap_   (std::move(subGPUHeap)),
       rscAllocator_ (device),
       graphReleaser_(device),
       frameReleaser_(device),
@@ -147,44 +147,26 @@ inline void FrameGraph::execute()
     DescriptorRange rtvRange;
     if(graphData_.rtvDescCount)
     {
-        const auto or = subRTVHeap_->allocRange(graphData_.rtvDescCount);
-        if(!or)
-        {
-            throw D3D12LabException(
-                "failed to allocate render target view descriptor");
-        }
-        rtvRange = *or ;
-        frameReleaser_.add(*subRTVHeap_, rtvRange);
+        rtvRange = subRTVHeap_.allocRange(graphData_.rtvDescCount);
+        frameReleaser_.add(subRTVHeap_, rtvRange);
     }
 
     DescriptorRange dsvRange;
     if(graphData_.dsvDescCount)
     {
-        const auto or = subDSVHeap_->allocRange(graphData_.dsvDescCount);
-        if(!or)
-        {
-            throw D3D12LabException(
-                "failed to allocate depth stencil view descriptor");
-        }
-        dsvRange = *or ;
-        frameReleaser_.add(*subDSVHeap_, dsvRange);
+        dsvRange = subDSVHeap_.allocRange(graphData_.dsvDescCount);
+        frameReleaser_.add(subDSVHeap_, dsvRange);
     }
 
     DescriptorRange gpuRange;
     if(graphData_.gpuDescCount)
     {
-        const auto or = subGPUHeap_->allocRange(graphData_.gpuDescCount);
-        if(!or)
-        {
-            throw D3D12LabException(
-                "failed to allocate GPU view descriptor");
-        }
-        gpuRange = *or ;
-        frameReleaser_.add(*subGPUHeap_, gpuRange);
+        gpuRange = subGPUHeap_.allocRange(graphData_.gpuDescCount);
+        frameReleaser_.add(subGPUHeap_, gpuRange);
     }
 
     executer_.execute(
-        subGPUHeap_->getRawHeap(), graphData_,
+        subGPUHeap_.getRawHeap(), graphData_,
         gpuRange, rtvRange, dsvRange, cmdQueue_);
 }
 

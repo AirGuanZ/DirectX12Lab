@@ -3,6 +3,7 @@
 #include <d3d12.h>
 
 #include <agz/d3d12/framegraph/common.h>
+#include <agz/d3d12/window/window.h>
 
 AGZ_D3D12_BEGIN
 
@@ -23,6 +24,15 @@ public:
                     IID_PPV_ARGS(f.fence.GetAddressOf())));
             f.lastSignaledFenceValue = 0;
         }
+    }
+
+    explicit FrameResourceFence(Window &window)
+        : FrameResourceFence(
+            window.getDevice(),
+            window.getCommandQueue(),
+            window.getImageCount())
+    {
+        
     }
 
     void startFrame(int frameIndex)

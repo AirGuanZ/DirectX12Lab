@@ -122,7 +122,7 @@ void run()
         1, int(mipmapChain.size()), false, false,
         { uploadCmdList, texInitData.data() });
 
-    auto texSRV = *rscHeap.allocSingle();
+    auto texSRV = rscHeap.allocSingle();
     tex.createShaderResourceView(texSRV);
 
     // msaa render target

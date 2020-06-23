@@ -23,7 +23,7 @@ namespace detail
 
 } // namespace detail
 
-inline RTV::RTV(ResourceIndex rsc) noexcept
+inline _internalRTV::_internalRTV(ResourceIndex rsc) noexcept
     : rsc(rsc), desc{}
 {
     desc.Format = DXGI_FORMAT_UNKNOWN;
@@ -31,7 +31,7 @@ inline RTV::RTV(ResourceIndex rsc) noexcept
 
 template<typename ... Args>
 Tex2DRTV::Tex2DRTV(ResourceIndex rsc, const Args &... args) noexcept
-    : RTV(rsc)
+    : _internalRTV(rsc)
 {
     desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
     desc.Texture2D = { 0, 0 };
@@ -40,7 +40,7 @@ Tex2DRTV::Tex2DRTV(ResourceIndex rsc, const Args &... args) noexcept
 
 template<typename ... Args>
 Tex2DMSRTV::Tex2DMSRTV(ResourceIndex rsc, const Args &... args) noexcept
-    : RTV(rsc)
+    : _internalRTV(rsc)
 {
     desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
     InvokeAll([&] { detail::_initRTV(desc, desc.Texture2DMS, args); }...);

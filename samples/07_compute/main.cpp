@@ -275,9 +275,9 @@ void run()
 
     // desc table
 
-    auto inputToATable = *rscHeap.allocRange(2);
-    auto AToBTable     = *rscHeap.allocRange(2);
-    auto BSRV          = *rscHeap.allocSingle();
+    auto inputToATable = rscHeap.allocRange(2);
+    auto AToBTable     = rscHeap.allocRange(2);
+    auto BSRV          = rscHeap.allocSingle();
 
     inputImage.createShaderResourceView(inputToATable[0]);
     texA.createUnorderedAccessView(inputToATable[1]);
@@ -289,7 +289,7 @@ void run()
 
     // imgui
 
-    auto imguiSRV = *rscHeap.allocSingle();
+    auto imguiSRV = rscHeap.allocSingle();
     ImGuiIntegration imgui(
         window, rscHeap.getRawHeap(),
         imguiSRV.getCPUHandle(), imguiSRV.getGPUHandle());

@@ -23,7 +23,7 @@ namespace detail
 
 } // namespace detail
 
-inline DSV::DSV(ResourceIndex rsc) noexcept
+inline _internalDSV::_internalDSV(ResourceIndex rsc) noexcept
     : rsc(rsc), desc{}
 {
     desc.Format = DXGI_FORMAT_UNKNOWN;
@@ -31,7 +31,7 @@ inline DSV::DSV(ResourceIndex rsc) noexcept
 
 template<typename ... Args>
 Tex2DDSV::Tex2DDSV(ResourceIndex rsc, const Args &... args) noexcept
-    : DSV(rsc)
+    : _internalDSV(rsc)
 {
     desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
     desc.Texture2D     = { 0 };
@@ -40,7 +40,7 @@ Tex2DDSV::Tex2DDSV(ResourceIndex rsc, const Args &... args) noexcept
 
 template<typename ... Args>
 Tex2DMSDSV::Tex2DMSDSV(ResourceIndex rsc, const Args &... args) noexcept
-    : DSV(rsc)
+    : _internalDSV(rsc)
 {
     desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
     InvokeAll([&] { detail::_initDSV(desc, desc.Texture2DMS, args); }...);

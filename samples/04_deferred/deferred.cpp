@@ -134,7 +134,7 @@ std::vector<ComPtr<ID3D12Resource>> Mesh::loadFromFile(
     const std::string         &objFilename,
     const std::string         &albedoFilename)
 {
-    albedoDescTable_ = *descHeap.allocRange(1);
+    albedoDescTable_ = descHeap.allocRange(1);
 
     std::vector<ComPtr<ID3D12Resource>> ret;
 
@@ -213,7 +213,7 @@ DeferredRenderer::DeferredRenderer(
         window.getDevice(), 3,
         D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false);
 
-    gBufferSRVDescTable_ = *shaderRscHeap_.allocRange(3);
+    gBufferSRVDescTable_ = shaderRscHeap_.allocRange(3);
 
     createGBuffers();
 

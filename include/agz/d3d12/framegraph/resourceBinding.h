@@ -31,7 +31,7 @@ struct RenderTargetBinding
     template<typename...Args>
     explicit RenderTargetBinding(const Args &...args) noexcept;
 
-    RTV rtv;
+    _internalRTV rtv;
 
     bool clearColor;
     ClearColor clearColorValue;
@@ -42,7 +42,7 @@ struct DepthStencilBinding
     template<typename...Args>
     explicit DepthStencilBinding(const Args &...args) noexcept;
 
-    DSV dsv;
+    _internalDSV dsv;
 
     bool clearDepth;
     bool clearStencil;

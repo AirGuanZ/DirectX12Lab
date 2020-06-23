@@ -32,7 +32,7 @@ namespace detail
 
 } // namespace detail
 
-inline UAV::UAV(ResourceIndex rsc) noexcept
+inline _internalUAV::_internalUAV(ResourceIndex rsc) noexcept
     : rsc(rsc), desc{}
 {
     desc.Format = DXGI_FORMAT_UNKNOWN;
@@ -40,7 +40,7 @@ inline UAV::UAV(ResourceIndex rsc) noexcept
 
 template<typename ... Args>
 Tex2DUAV::Tex2DUAV(ResourceIndex rsc, const Args &... args) noexcept
-    : UAV(rsc)
+    : _internalUAV(rsc)
 {
     desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     desc.Texture2D     = { 0, 0 };
@@ -49,7 +49,7 @@ Tex2DUAV::Tex2DUAV(ResourceIndex rsc, const Args &... args) noexcept
 
 template<typename ... Args>
 Tex2DArrUAV::Tex2DArrUAV(ResourceIndex rsc, const Args &... args) noexcept
-    : UAV(rsc)
+    : _internalUAV(rsc)
 {
     desc.ViewDimension  = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
     desc.Texture2DArray = { 0, 0, 1, 0 };

@@ -6,16 +6,16 @@
 
 AGZ_D3D12_FG_BEGIN
 
-struct DSV
+struct _internalDSV
 {
-    explicit DSV(ResourceIndex rsc) noexcept;
+    explicit _internalDSV(ResourceIndex rsc) noexcept;
 
     ResourceIndex rsc;
 
     D3D12_DEPTH_STENCIL_VIEW_DESC desc;
 };
 
-struct Tex2DDSV : DSV
+struct Tex2DDSV : _internalDSV
 {
     template<typename...Args>
     explicit Tex2DDSV(ResourceIndex rsc, const Args &...args) noexcept;
@@ -23,7 +23,7 @@ struct Tex2DDSV : DSV
     Tex2DDSV(const Tex2DDSV &) = default;
 };
 
-struct Tex2DMSDSV : DSV
+struct Tex2DMSDSV : _internalDSV
 {
     template<typename...Args>
     explicit Tex2DMSDSV(ResourceIndex rsc, const Args &...args) noexcept;

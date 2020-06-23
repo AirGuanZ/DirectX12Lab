@@ -4,7 +4,7 @@ PROJECT(08-FRAMEGRAPH)
 
 SET(TargetName 08_FrameGraph)
 
-ADD_EXECUTABLE(${TargetName} "main.cpp")
+ADD_EXECUTABLE(${TargetName} "main.cpp" "mesh.h" "mesh.cpp")
 
 SET_PROPERTY(TARGET ${TargetName} PROPERTY CXX_STANDARD 17)
 SET_PROPERTY(TARGET ${TargetName} PROPERTY CXX_STANDARD_REQUIRED ON)
