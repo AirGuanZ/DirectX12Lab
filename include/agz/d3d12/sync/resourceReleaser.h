@@ -19,12 +19,11 @@ class ResourceReleaser
     {
         void release()
         {
-            rscAlloc->freeResource(rsc, state);
+            rscAlloc->freeResource(rsc);
         }
 
         fg::ResourceAllocator *rscAlloc;
         ComPtr<ID3D12Resource> rsc;
-        D3D12_RESOURCE_STATES state;
     };
 
     struct DescriptorRangeRecord
@@ -78,9 +77,7 @@ public:
     void add(ComPtr<ID3D12Resource> rsc);
 
     void add(
-        fg::ResourceAllocator &rscAlloc,
-        ComPtr<ID3D12Resource> rsc,
-        D3D12_RESOURCE_STATES  state);
+        fg::ResourceAllocator &rscAlloc, ComPtr<ID3D12Resource> rsc);
 
     void add(DescriptorSubHeap &subheap, DescriptorRange range);
 
@@ -139,12 +136,11 @@ inline void ResourceReleaser::add(ComPtr<ID3D12Resource> rsc)
 
 inline void ResourceReleaser::add(
     fg::ResourceAllocator &rscAlloc,
-    ComPtr<ID3D12Resource> rsc,
-    D3D12_RESOURCE_STATES state)
+    ComPtr<ID3D12Resource> rsc)
 {
     records_.push_back(
         {
-            RscAllocRecord{ &rscAlloc, std::move(rsc), state },
+            RscAllocRecord{ &rscAlloc, std::move(rsc) },
             nextExpectedFenceValue_
         });
 }

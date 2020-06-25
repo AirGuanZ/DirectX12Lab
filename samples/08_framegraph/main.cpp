@@ -296,6 +296,7 @@ void run()
 
     fg::FrameGraph graph(
         device,
+        window.getAdaptor(),
         rtvHeap.allocSubHeap(100),
         dsvHeap.allocSubHeap(100),
         gpuHeap.allocSubHeap(100),
@@ -313,7 +314,7 @@ void run()
 
         graph.newGraph();
 
-        dsIdx = graph.addTransientResource(
+        dsIdx = graph.addInternalResource(
             Tex2DDesc{ DXGI_FORMAT_D24_UNORM_S8_UINT, W, H });
 
         rtIdx = graph.addExternalResource(
@@ -321,13 +322,13 @@ void run()
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_PRESENT);
 
-        gPosIdx = graph.addTransientResource(
+        gPosIdx = graph.addInternalResource(
             Tex2DDesc{ DXGI_FORMAT_R32G32B32A32_FLOAT, W, H });
 
-        gNorIdx = graph.addTransientResource(
+        gNorIdx = graph.addInternalResource(
             Tex2DDesc{ DXGI_FORMAT_R32G32B32A32_FLOAT, W, H });
 
-        gColorIdx = graph.addTransientResource(
+        gColorIdx = graph.addInternalResource(
             Tex2DDesc{ DXGI_FORMAT_R8G8B8A8_UNORM, W, H });
 
         graph.addGraphicsPass(

@@ -17,7 +17,7 @@ class FrameGraphCompiler : public misc::uncopyable_t
 {
 public:
     
-    struct CompilerTransientResourceNode
+    struct CompilerInternalResourceNode
     {
         RscDesc desc;
         D3D12_RESOURCE_STATES initialState = {};
@@ -42,7 +42,7 @@ public:
     };
 
     using CompilerResourceNode = misc::variant_t<
-        CompilerTransientResourceNode,
+        CompilerInternalResourceNode,
         CompilerExternalResourceNode>;
 
     struct CompilerPassNode
@@ -52,7 +52,12 @@ public:
             ResourceIndex idx;
             D3D12_RESOURCE_STATES inState = {};
 
-            using ViewDesc = misc::variant_t<std::monostate, _internalSRV, _internalUAV, _internalRTV, _internalDSV>;
+            using ViewDesc = misc::variant_t<
+                std::monostate,
+                _internalSRV,
+                _internalUAV,
+                _internalRTV,
+                _internalDSV>;
             ViewDesc viewDesc;
 
             int idxInRscUsers = -1;
@@ -78,17 +83,17 @@ public:
         ComPtr<ID3D12PipelineState> pipelineState;
     };
 
-    ResourceIndex addTransientResource(
+    ResourceIndex addInternalResource(
         const RscDesc        &rscDesc,
         D3D12_RESOURCE_STATES initialState);
 
-    ResourceIndex addTransientResource(
+    ResourceIndex addInternalResource(
         const RscDesc        &rscDesc,
         D3D12_RESOURCE_STATES initialState,
         const ClearColor     &clearColorValue,
         DXGI_FORMAT           clearFormat = DXGI_FORMAT_UNKNOWN);
 
-    ResourceIndex addTransientResource(
+    ResourceIndex addInternalResource(
         const RscDesc           &rscDesc,
         D3D12_RESOURCE_STATES    initialState,
         const ClearDepthStencil &clearDepthStencilValue,
@@ -117,7 +122,7 @@ private:
 };
 
 inline std::pair<bool, D3D12_CLEAR_VALUE>
-    FrameGraphCompiler::CompilerTransientResourceNode
+    FrameGraphCompiler::CompilerInternalResourceNode
         ::getClearValue() const noexcept
 {
     if(clearColor)
@@ -140,10 +145,10 @@ inline std::pair<bool, D3D12_CLEAR_VALUE>
     return { false, {} };
 }
 
-inline ResourceIndex FrameGraphCompiler::addTransientResource(
+inline ResourceIndex FrameGraphCompiler::addInternalResource(
     const RscDesc &rscDesc, D3D12_RESOURCE_STATES initialState)
 {
-    CompilerTransientResourceNode newNode;
+    CompilerInternalResourceNode newNode;
     newNode.desc         = rscDesc;
     newNode.initialState = initialState;
 
@@ -152,13 +157,13 @@ inline ResourceIndex FrameGraphCompiler::addTransientResource(
     return { idx };
 }
 
-inline ResourceIndex FrameGraphCompiler::addTransientResource(
+inline ResourceIndex FrameGraphCompiler::addInternalResource(
     const RscDesc        &rscDesc,
     D3D12_RESOURCE_STATES initialState,
     const ClearColor     &clearColorValue,
     DXGI_FORMAT           clearFormat)
 {
-    CompilerTransientResourceNode newNode;
+    CompilerInternalResourceNode newNode;
     newNode.desc            = rscDesc;
     newNode.initialState    = initialState;
     newNode.clearColor      = true;
@@ -174,13 +179,13 @@ inline ResourceIndex FrameGraphCompiler::addTransientResource(
     return { idx };
 }
 
-inline ResourceIndex FrameGraphCompiler::addTransientResource(
+inline ResourceIndex FrameGraphCompiler::addInternalResource(
     const RscDesc           &rscDesc,
     D3D12_RESOURCE_STATES    initialState,
     const ClearDepthStencil &clearDepthStencilValue,
     DXGI_FORMAT              clearFormat)
 {
-    CompilerTransientResourceNode newNode;
+    CompilerInternalResourceNode newNode;
     newNode.desc                   = rscDesc;
     newNode.initialState           = initialState;
     newNode.clearDepthStencil      = true;
@@ -446,7 +451,7 @@ inline FrameGraphData FrameGraphCompiler::compile(
             // collect rsc creation flags
 
             if(auto tn = rscs_[rscUsage.idx.idx].as_if
-                <CompilerTransientResourceNode>(); tn)
+                <CompilerInternalResourceNode>(); tn)
             {
                 if(tn->initialState == D3D12_RESOURCE_STATE_COMMON)
                     tn->initialState = rscUsage.inState;
@@ -480,7 +485,7 @@ inline FrameGraphData FrameGraphCompiler::compile(
             // fill clear value
 
             auto tn = rscs_[rscUsage.idx.idx]
-                .as_if<CompilerTransientResourceNode>();
+                .as_if<CompilerInternalResourceNode>();
 
             if(!rscUsage.rtdsBinding.is<std::monostate>() &&
                 tn && !tn->clearColor && !tn->clearDepthStencil)
@@ -529,15 +534,16 @@ inline FrameGraphData FrameGraphCompiler::compile(
         ComPtr<ID3D12Resource> d3dRsc;
 
         match_variant(rsc,
-            [&](const CompilerTransientResourceNode &tn)
+            [&](const CompilerInternalResourceNode &tn)
         {
             const auto [clear, clearValue] = tn.getClearValue();
 
             d3dRsc = rscAlloc.allocResource(
-                { tn.desc.desc, clear, clearValue },
-                tn.initialState, tempRsc.actualInitialState);
+                { tn.desc.desc, clear, clearValue }, tn.initialState);
 
-            rscReleaser.add(rscAlloc, d3dRsc, tempRsc.users.back().second);
+            tempRsc.actualInitialState = tn.initialState;
+
+            rscReleaser.add(rscAlloc, d3dRsc);
         },
             [&](const CompilerExternalResourceNode &en)
         {
@@ -594,7 +600,7 @@ inline FrameGraphData FrameGraphCompiler::compile(
                 {
                     passRsc.afterState = en.finalState;
                 },
-                    [&](const CompilerTransientResourceNode &tn)
+                    [&](const CompilerInternalResourceNode &tn)
                 {
                     passRsc.afterState = tempRsc.actualInitialState;
                 });

@@ -12,6 +12,7 @@ public:
 
     FrameGraph(
         ID3D12Device       *device,
+        IDXGIAdapter       *adaptor,
         DescriptorSubHeap   subRTVHeap,
         DescriptorSubHeap   subDSVHeap,
         DescriptorSubHeap   subGPUHeap,
@@ -27,31 +28,31 @@ public:
 
     void newGraph();
 
-    ResourceIndex addTransientResource(
+    ResourceIndex addInternalResource(
         const RscDesc        &rscDesc,
         D3D12_RESOURCE_STATES initialState);
 
-    ResourceIndex addTransientResource(
+    ResourceIndex addInternalResource(
         const RscDesc        &rscDesc,
         D3D12_RESOURCE_STATES initialState,
         const ClearColor     &clearColorValue,
         DXGI_FORMAT           clearFormat = DXGI_FORMAT_UNKNOWN);
 
-    ResourceIndex addTransientResource(
+    ResourceIndex addInternalResource(
         const RscDesc           &rscDesc,
         D3D12_RESOURCE_STATES    initialState,
         const ClearDepthStencil &clearDepthStencilValue,
         DXGI_FORMAT              clearFormat = DXGI_FORMAT_UNKNOWN);
     
-    ResourceIndex addTransientResource(
+    ResourceIndex addInternalResource(
         const RscDesc        &rscDesc);
 
-    ResourceIndex addTransientResource(
+    ResourceIndex addInternalResource(
         const RscDesc        &rscDesc,
         const ClearColor     &clearColorValue,
         DXGI_FORMAT           clearFormat = DXGI_FORMAT_UNKNOWN);
 
-    ResourceIndex addTransientResource(
+    ResourceIndex addInternalResource(
         const RscDesc           &rscDesc,
         const ClearDepthStencil &clearDepthStencilValue,
         DXGI_FORMAT              clearFormat = DXGI_FORMAT_UNKNOWN);
@@ -93,6 +94,7 @@ private:
 
 inline FrameGraph::FrameGraph(
     ID3D12Device       *device,
+    IDXGIAdapter       *adaptor,
     DescriptorSubHeap   subRTVHeap,
     DescriptorSubHeap   subDSVHeap,
     DescriptorSubHeap   subGPUHeap,
@@ -104,7 +106,7 @@ inline FrameGraph::FrameGraph(
       subRTVHeap_   (std::move(subRTVHeap)),
       subDSVHeap_   (std::move(subDSVHeap)),
       subGPUHeap_   (std::move(subGPUHeap)),
-      rscAllocator_ (device),
+      rscAllocator_ (device, adaptor),
       graphReleaser_(device),
       frameReleaser_(device),
       executer_     (device, threadCount, frameCount)
@@ -183,54 +185,54 @@ inline void FrameGraph::execute()
         gpuRange, rtvRange, dsvRange, cmdQueue_);
 }
 
-inline ResourceIndex FrameGraph::addTransientResource(
+inline ResourceIndex FrameGraph::addInternalResource(
     const RscDesc &rscDesc, D3D12_RESOURCE_STATES initialState)
 {
-    return compiler_->addTransientResource(rscDesc, initialState);
+    return compiler_->addInternalResource(rscDesc, initialState);
 }
 
-inline ResourceIndex FrameGraph::addTransientResource(
+inline ResourceIndex FrameGraph::addInternalResource(
     const RscDesc        &rscDesc,
     D3D12_RESOURCE_STATES initialState,
     const ClearColor     &clearColorValue,
     DXGI_FORMAT           clearFormat)
 {
-    return compiler_->addTransientResource(
+    return compiler_->addInternalResource(
         rscDesc, initialState, clearColorValue, clearFormat);
 }
 
-inline ResourceIndex FrameGraph::addTransientResource(
+inline ResourceIndex FrameGraph::addInternalResource(
     const RscDesc           &rscDesc,
     D3D12_RESOURCE_STATES    initialState,
     const ClearDepthStencil &clearDepthStencilValue,
     DXGI_FORMAT              clearFormat)
 {
-    return compiler_->addTransientResource(
+    return compiler_->addInternalResource(
         rscDesc, initialState, clearDepthStencilValue, clearFormat);
 }
 
-inline ResourceIndex FrameGraph::addTransientResource(
+inline ResourceIndex FrameGraph::addInternalResource(
     const RscDesc &rscDesc)
 {
-    return addTransientResource(rscDesc, D3D12_RESOURCE_STATE_COMMON);
+    return addInternalResource(rscDesc, D3D12_RESOURCE_STATE_COMMON);
 }
 
-inline ResourceIndex FrameGraph::addTransientResource(
+inline ResourceIndex FrameGraph::addInternalResource(
     const RscDesc        &rscDesc,
     const ClearColor     &clearColorValue,
     DXGI_FORMAT           clearFormat)
 {
-    return addTransientResource(
+    return addInternalResource(
         rscDesc, D3D12_RESOURCE_STATE_COMMON,
         clearColorValue, clearFormat);
 }
 
-inline ResourceIndex FrameGraph::addTransientResource(
+inline ResourceIndex FrameGraph::addInternalResource(
     const RscDesc           &rscDesc,
     const ClearDepthStencil &clearDepthStencilValue,
     DXGI_FORMAT              clearFormat)
 {
-    return addTransientResource(
+    return addInternalResource(
         rscDesc, D3D12_RESOURCE_STATE_COMMON,
         clearDepthStencilValue, clearFormat);
 }

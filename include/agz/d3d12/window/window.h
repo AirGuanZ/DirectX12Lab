@@ -4,6 +4,7 @@
 #include <string>
 
 #include <d3d12.h>
+#include <dxgi.h>
 
 #include <agz/d3d12/descriptor/rawDescriptorHeap.h>
 #include <agz/d3d12/pipeline/pipelineState.h>
@@ -96,6 +97,8 @@ public:
     const D3D12_RECT &getDefaultScissorRect() const noexcept;
 
     // d3d12 device/queue
+
+    IDXGIAdapter *getAdaptor() const noexcept;
 
     ID3D12Device *getDevice() const noexcept;
 

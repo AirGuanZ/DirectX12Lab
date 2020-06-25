@@ -4,15 +4,13 @@
 
 #include <d3d12.h>
 
+#include <D3D12MemAlloc.h>
+
 #include <agz/d3d12/framegraph/common.h>
 
 AGZ_D3D12_FG_BEGIN
 
 // no method is thread-safe
-// a resource can be:
-//      1. allocated from the allocator
-//      2. being freed which means it cannot be used by cpu anymore.
-//         however the gpu may still use it.
 class ResourceAllocator : public misc::uncopyable_t
 {
 public:
@@ -29,40 +27,30 @@ public:
         }
     };
 
-    explicit ResourceAllocator(ComPtr<ID3D12Device> device);
+    ResourceAllocator(ID3D12Device *device, IDXGIAdapter *adaptor);
 
     ~ResourceAllocator();
 
     ComPtr<ID3D12Resource> allocResource(
         const ResourceDesc    &desc,
-        D3D12_RESOURCE_STATES  expectedInitialState,
-        D3D12_RESOURCE_STATES &actualInitialState);
+        D3D12_RESOURCE_STATES  expectedInitialState);
 
-    void freeResource(
-        ComPtr<ID3D12Resource> rsc,
-        D3D12_RESOURCE_STATES  state);
+    void freeResource(ComPtr<ID3D12Resource> rsc);
 
 private:
 
-    ComPtr<ID3D12Resource> newResource(
-        const ResourceDesc &desc, D3D12_RESOURCE_STATES initialState);
-
-    struct UnusedRsc
+    struct D3D12MADeleter
     {
-        ComPtr<ID3D12Resource> rsc;
-        D3D12_RESOURCE_STATES  state;
+        void operator()(D3D12MA::Allocator *allocator) const
+        {
+            if(allocator)
+                allocator->Release();
+        }
     };
 
-    struct AllocatedRsc
-    {
-        ResourceDesc           desc;
-        ComPtr<ID3D12Resource> rsc;
-    };
+    std::unique_ptr<D3D12MA::Allocator, D3D12MADeleter> d3d12MemAlloc_;
 
-    ComPtr<ID3D12Device> device_;
-
-    std::multimap<ResourceDesc, UnusedRsc>         unusedRscs_;
-    std::map<ComPtr<ID3D12Resource>, ResourceDesc> allocatedRscs_;
+    std::map<ComPtr<ID3D12Resource>, D3D12MA::Allocation*> allocatedRscs_;
 };
 
 AGZ_D3D12_FG_END

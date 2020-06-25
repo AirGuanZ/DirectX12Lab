@@ -10,6 +10,10 @@ IF(D3D12_LAB_WITH_AGZ_UTILS)
 	ADD_SUBDIRECTORY(lib/agz-utils)
 ENDIF()
 
+########## d3d12 mem alloc
+
+ADD_SUBDIRECTORY(lib/D3D12MemAlloc)
+
 ########## d3d12
 
 FILE(GLOB_RECURSE D3D12_SRC
@@ -39,10 +43,16 @@ TARGET_INCLUDE_DIRECTORIES(D3D12Lab PUBLIC "${PROJECT_SOURCE_DIR}/lib/d3dx12/")
 TARGET_INCLUDE_DIRECTORIES(D3D12Lab PUBLIC "${PROJECT_SOURCE_DIR}/lib/avir/")
 TARGET_LINK_LIBRARIES(D3D12Lab PUBLIC
     AGZUtils
+    D3D12MemAlloc
     d3d12.lib
     dxgi.lib
     d3dcompiler.lib
     dxguid.lib)
+
+########## 3rd-party folder
+
+SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
+SET_TARGET_PROPERTIES(AGZUtils D3D12MemAlloc PROPERTIES FOLDER "ThirdParty")
 
 ########## samples
 
@@ -55,3 +65,4 @@ ADD_SUBDIRECTORY(samples/05_mipmap_msaa)
 ADD_SUBDIRECTORY(samples/06_imgui)
 ADD_SUBDIRECTORY(samples/07_compute)
 ADD_SUBDIRECTORY(samples/08_framegraph)
+ADD_SUBDIRECTORY(samples/09_particles)

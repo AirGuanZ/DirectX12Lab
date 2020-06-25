@@ -55,6 +55,8 @@ struct Window::WindowImplData
 
     DXGI_FORMAT backbufferFormat = DXGI_FORMAT_UNKNOWN;
 
+    ComPtr<IDXGIAdapter> adapter;
+
     ComPtr<ID3D12Device>       device;
     ComPtr<ID3D12CommandQueue> cmdQueue;
     
@@ -190,12 +192,16 @@ void Window::initD3D12(const WindowDesc &desc)
         "failed to create dxgi factory",
         CreateDXGIFactory1(IID_PPV_ARGS(dxgiFactory.GetAddressOf())));
 
+    // adaptor
+
+    dxgiFactory->EnumAdapters(0, impl_->adapter.GetAddressOf());
+
     // device
 
     AGZ_D3D12_CHECK_HR_MSG(
         "failed to create d3d12 device",
         D3D12CreateDevice(
-            nullptr, D3D_FEATURE_LEVEL_12_0,
+            impl_->adapter.Get(), D3D_FEATURE_LEVEL_12_0,
             IID_PPV_ARGS(impl_->device.GetAddressOf())));
     
     // command queue
@@ -322,6 +328,7 @@ Window::~Window()
     impl_->swapChain.Reset();
     impl_->cmdQueue.Reset();
     impl_->device.Reset();
+    impl_->adapter.Reset();
 
 #ifdef AGZ_DEBUG
     {
@@ -480,6 +487,11 @@ const D3D12_VIEWPORT &Window::getDefaultViewport() const noexcept
 const D3D12_RECT &Window::getDefaultScissorRect() const noexcept
 {
     return impl_->fullwindowRect;
+}
+
+IDXGIAdapter *Window::getAdaptor() const noexcept
+{
+    return impl_->adapter.Get();
 }
 
 ID3D12Device *Window::getDevice() const noexcept
