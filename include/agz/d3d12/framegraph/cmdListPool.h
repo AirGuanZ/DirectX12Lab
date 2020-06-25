@@ -17,9 +17,10 @@ public:
 
     ~CommandListPool();
 
-    void startFrame(int frameIndex);
+    void startFrame(
+        int frameIndex);
 
-    ComPtr<ID3D12GraphicsCommandList> requireUnusedCommandList(int threadIndex);
+    ComPtr<ID3D12GraphicsCommandList> requireGraphicsCommandList(int threadIndex);
 
     void addUnusedGraphicsCmdLists(ComPtr<ID3D12GraphicsCommandList> cmdList);
 
@@ -59,6 +60,7 @@ inline CommandListPool::CommandListPool(
     for(auto &t : threadResources_)
     {
         t.graphicsCmdAllocs_.resize(frameCount);
+
         for(auto &ca : t.graphicsCmdAllocs_)
         {
             AGZ_D3D12_CHECK_HR(
@@ -83,7 +85,7 @@ inline void CommandListPool::startFrame(int frameIndex)
 }
 
 inline ComPtr<ID3D12GraphicsCommandList>
-    CommandListPool::requireUnusedCommandList(int threadIndex)
+    CommandListPool::requireGraphicsCommandList(int threadIndex)
 {
     ComPtr<ID3D12GraphicsCommandList> ret;
 

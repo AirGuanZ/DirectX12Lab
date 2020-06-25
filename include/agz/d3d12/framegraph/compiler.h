@@ -3,9 +3,9 @@
 #include <d3d12.h>
 
 #include <agz/d3d12/framegraph/graphData.h>
-#include <agz/d3d12/framegraph/resourceBinding.h>
 #include <agz/d3d12/framegraph/resourceDesc.h>
 #include <agz/d3d12/framegraph/resourceManager.h>
+#include <agz/d3d12/framegraph/RTDSBinding.h>
 #include <agz/d3d12/framegraph/viewport.h>
 #include <agz/d3d12/sync/resourceReleaser.h>
 
@@ -13,7 +13,7 @@ AGZ_D3D12_FG_BEGIN
 
 using ResourceReleaser = d3d12::ResourceReleaser;
 
-class FrameGraphCompiler
+class FrameGraphCompiler : public misc::uncopyable_t
 {
 public:
     
@@ -62,6 +62,8 @@ public:
             RTDSBinding rtdsBinding;
         };
 
+        bool isGraphics;
+
         FrameGraphPassFunc passFunc;
 
         std::vector<RscInPass> rscs;
@@ -98,7 +100,10 @@ public:
         D3D12_RESOURCE_STATES        finalState);
 
     template<typename...Args>
-    PassIndex addPass(FrameGraphPassFunc passFunc, Args &&...args);
+    PassIndex addGraphicsPass(FrameGraphPassFunc passFunc, Args &&...args);
+
+    template<typename...Args>
+    PassIndex addComputePass(FrameGraphPassFunc passFunc, Args &&...args);
 
     FrameGraphData compile(
         ID3D12Device      *device,
@@ -327,21 +332,77 @@ namespace detail
         passNode.rootSignature = std::move(rootSignature);
     }
 
+    inline void _initCompilerCP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        const _internalSRV &srv)
+    {
+        FrameGraphCompiler::CompilerPassNode::RscInPass rsc;
+        rsc.idx      = srv.rsc;
+        rsc.inState  = srv.getRequiredRscState();
+        rsc.viewDesc = srv;
+        passNode.rscs.push_back(rsc);
+    }
+
+    inline void _initCompilerCP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        const _internalUAV &uav)
+    {
+        FrameGraphCompiler::CompilerPassNode::RscInPass rsc;
+        rsc.idx      = uav.rsc;
+        rsc.inState  = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        rsc.viewDesc = uav;
+        passNode.rscs.push_back(rsc);
+    }
+    
+    inline void _initCompilerCP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        ComPtr<ID3D12PipelineState> pipelineState)
+    {
+        passNode.pipelineState = std::move(pipelineState);
+    }
+
+    inline void _initCompilerCP(
+        FrameGraphCompiler::CompilerPassNode &passNode,
+        ComPtr<ID3D12RootSignature> rootSignature)
+    {
+        passNode.rootSignature = std::move(rootSignature);
+    }
+
 } // namespace detail
 
 template<typename ... Args>
-PassIndex FrameGraphCompiler::addPass(
+PassIndex FrameGraphCompiler::addGraphicsPass(
     FrameGraphPassFunc passFunc, Args &&... args)
 {
     const auto idx = static_cast<int32_t>(passes_.size());
     passes_.emplace_back();
     auto &newPass = passes_.back();
 
-    newPass.passFunc = std::move(passFunc);
+    newPass.isGraphics = true;
+    newPass.passFunc   = std::move(passFunc);
 
     InvokeAll([&]
     {
         detail::_initCompilerRP(newPass, std::forward<Args>(args));
+    }...);
+
+    return { idx };
+}
+
+template<typename ... Args>
+PassIndex FrameGraphCompiler::addComputePass(
+    FrameGraphPassFunc passFunc, Args &&... args)
+{
+    const auto idx = static_cast<int32_t>(passes_.size());
+    passes_.emplace_back();
+    auto &newPass = passes_.back();
+
+    newPass.isGraphics = false;
+    newPass.passFunc   = std::move(passFunc);
+
+    InvokeAll([&]
+    {
+        detail::_initCompilerCP(newPass, std::forward<Args>(args));
     }...);
 
     return { idx };
@@ -381,6 +442,8 @@ inline FrameGraphData FrameGraphCompiler::compile(
             rscUsage.idxInRscUsers = idxInRscUsers;
 
             tempRsc.users.push_back({ passIdx, rscUsage.inState });
+
+            // collect rsc creation flags
 
             if(auto tn = rscs_[rscUsage.idx.idx].as_if
                 <CompilerTransientResourceNode>(); tn)
@@ -497,10 +560,8 @@ inline FrameGraphData FrameGraphCompiler::compile(
     D3D12_RESOURCE_DESC firstRTDSDesc;
     firstRTDSDesc.Width = 0;
 
-    for(size_t i = 0; i < passes_.size(); ++i)
+    for(auto &pass : passes_)
     {
-        auto &pass = passes_[i];
-
         std::map<ResourceIndex, FrameGraphPassNode::PassResource> passRscs;
         for(auto &rscUsage : pass.rscs)
         {
@@ -640,9 +701,17 @@ inline FrameGraphData FrameGraphCompiler::compile(
         else
             vp.scissors = pass.scissors;
 
-        ret.passNodes.emplace_back(
-            std::move(passRscs), vp, pass.passFunc,
-            pass.pipelineState, pass.rootSignature);
+        if(pass.isGraphics)
+        {
+            ret.passNodes.emplace_back(
+                std::move(passRscs), vp, pass.passFunc,
+                pass.pipelineState, pass.rootSignature);
+        }
+        else
+        {
+            ret.passNodes.emplace_back(
+                std::move(passRscs), pass.passFunc, pass.rootSignature);
+        }
     }
 
     return ret;

@@ -330,38 +330,27 @@ void run()
         gColorIdx = graph.addTransientResource(
             Tex2DDesc{ DXGI_FORMAT_R8G8B8A8_UNORM, W, H });
 
-        graph.addPass(
+        graph.addGraphicsPass(
             [&](ID3D12GraphicsCommandList *cmdList,
                 FrameGraphPassContext &ctx)
             {
                 cmdList->IASetPrimitiveTopology(
                     D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
                 for(auto &m : meshes)
                 {
                     m.draw(
                         cmdList, window.getCurrentImageIndex(), camera);
                 }
             },
-            RenderTargetBinding{
-                Tex2DRTV{ gPosIdx },
-                ClearColor{ }
-            },
-            RenderTargetBinding{
-                Tex2DRTV{ gNorIdx },
-                ClearColor{ }
-            },
-            RenderTargetBinding{
-                Tex2DRTV{ gColorIdx },
-                ClearColor{ }
-            },
-            DepthStencilBinding{
-                Tex2DDSV{ dsIdx },
-                ClearDepthStencil{ 1, 0 }
-            },
+            RenderTargetBinding{ Tex2DRTV{ gPosIdx   }, ClearColor{ } },
+            RenderTargetBinding{ Tex2DRTV{ gNorIdx   }, ClearColor{ } },
+            RenderTargetBinding{ Tex2DRTV{ gColorIdx }, ClearColor{ } },
+            DepthStencilBinding{ Tex2DDSV{ dsIdx     }, ClearDepthStencil{ } },
             gBufferRootSignature,
             gBufferPipeline);
 
-        graph.addPass(
+        graph.addGraphicsPass(
             [&](ID3D12GraphicsCommandList *cmdList,
                 FrameGraphPassContext &ctx)
         {
@@ -369,6 +358,7 @@ void run()
                 0, lightingPointLight.getGpuVirtualAddress(0));
             cmdList->SetGraphicsRootDescriptorTable(
                 1, ctx.getResource(gPosIdx).descriptor);
+
             cmdList->IASetPrimitiveTopology(
                 D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 

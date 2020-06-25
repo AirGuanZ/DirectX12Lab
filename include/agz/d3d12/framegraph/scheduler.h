@@ -32,8 +32,8 @@ public:
 private:
 
     const std::vector<FrameGraphPassNode> &passNodes_;
-    CommandListPool                 &cmdListPool_;
-    ComPtr<ID3D12CommandQueue>       cmdQueue_;
+    CommandListPool                       &cmdListPool_;
+    ComPtr<ID3D12CommandQueue>             cmdQueue_;
 
     enum class TaskState
     {

@@ -6,7 +6,7 @@
 
 AGZ_D3D12_FG_BEGIN
 
-class FrameGraph
+class FrameGraph : public misc::uncopyable_t
 {
 public:
 
@@ -62,7 +62,7 @@ public:
         D3D12_RESOURCE_STATES        finalState);
 
     template<typename...Args>
-    PassIndex addPass(FrameGraphPassFunc passFunc, Args &&...args);
+    PassIndex addGraphicsPass(FrameGraphPassFunc passFunc, Args &&...args);
 
     void restart();
 
@@ -245,10 +245,10 @@ inline ResourceIndex FrameGraph::addExternalResource(
 }
 
 template<typename ... Args>
-PassIndex FrameGraph::addPass(
+PassIndex FrameGraph::addGraphicsPass(
     FrameGraphPassFunc passFunc, Args &&... args)
 {
-    return compiler_->addPass(
+    return compiler_->addGraphicsPass(
         std::move(passFunc), std::forward<Args>(args)...);
 }
 

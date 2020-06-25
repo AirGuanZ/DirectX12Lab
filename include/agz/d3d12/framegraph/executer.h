@@ -76,7 +76,7 @@ inline void FrameGraphExecuter::execute(
         if(!task.begNode)
             return;
 
-        auto cmdList = cmdListPool_.requireUnusedCommandList(threadIndex);
+        auto cmdList = cmdListPool_.requireGraphicsCommandList(threadIndex);
         if(gpuRawHeap)
             cmdList->SetDescriptorHeaps(1, &gpuRawHeap);
 

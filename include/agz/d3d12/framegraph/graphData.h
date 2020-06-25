@@ -5,7 +5,7 @@
 #include <agz/d3d12/framegraph/resourceView/renderTargetViewDesc.h>
 #include <agz/d3d12/framegraph/resourceView/shaderResourceViewDesc.h>
 #include <agz/d3d12/framegraph/resourceView/unorderedAccessViewDesc.h>
-#include <agz/d3d12/framegraph/resourceBinding.h>
+#include <agz/d3d12/framegraph/RTDSBinding.h>
 #include <agz/utility/misc.h>
 
 AGZ_D3D12_FG_BEGIN
@@ -85,11 +85,18 @@ public:
         std::vector<D3D12_RECT> scissors;
     };
 
+    // init as graphics node
     FrameGraphPassNode(
         std::map<ResourceIndex, PassResource> rscs,
         PassViewport                          passViewport,
         FrameGraphPassFunc                    passFunc,
         ComPtr<ID3D12PipelineState>           pipelineState,
+        ComPtr<ID3D12RootSignature>           rootSignature) noexcept;
+
+    // init as compute node
+    FrameGraphPassNode(
+        std::map<ResourceIndex, PassResource> rscs,
+        FrameGraphPassFunc                    passFunc,
         ComPtr<ID3D12RootSignature>           rootSignature) noexcept;
 
     bool execute(
@@ -102,7 +109,18 @@ public:
 
 private:
 
+    template<bool IS_GRAPHICS>
+    bool executeImpl(
+        ID3D12Device                        *device,
+        std::vector<FrameGraphResourceNode> &rscNodes,
+        DescriptorRange                      allGPUDescs,
+        DescriptorRange                      allRTVDescs,
+        DescriptorRange                      allDSVDescs,
+        ID3D12GraphicsCommandList           *cmdList) const;
+
     friend class FrameGraphPassContext;
+
+    bool isGraphics_;
 
     std::map<ResourceIndex, PassResource> rscs_;
 
@@ -185,8 +203,9 @@ inline FrameGraphPassNode::FrameGraphPassNode(
     FrameGraphPassFunc                    passFunc,
     ComPtr<ID3D12PipelineState>           pipelineState,
     ComPtr<ID3D12RootSignature>           rootSignature) noexcept
-    : rscs_(std::move(rscs)),
-      viewport_(passViewport),
+    : isGraphics_(true),
+      rscs_(std::move(rscs)),
+      viewport_(std::move(passViewport)),
       passFunc_(std::move(passFunc)),
       pipelineState_(std::move(pipelineState)),
       rootSignature_(std::move(rootSignature))
@@ -194,7 +213,21 @@ inline FrameGraphPassNode::FrameGraphPassNode(
 
 }
 
-inline bool FrameGraphPassNode::execute(
+inline FrameGraphPassNode::FrameGraphPassNode(
+    std::map<ResourceIndex, PassResource> rscs,
+    FrameGraphPassFunc                    passFunc,
+    ComPtr<ID3D12RootSignature>           rootSignature) noexcept
+    : isGraphics_(false),
+      rscs_(std::move(rscs)),
+      viewport_({}),
+      passFunc_(std::move(passFunc)),
+      rootSignature_(std::move(rootSignature))
+{
+    
+}
+
+template<bool IS_GRAPHICS>
+bool FrameGraphPassNode::executeImpl(
     ID3D12Device                        *device,
     std::vector<FrameGraphResourceNode> &rscNodes,
     DescriptorRange                      allGPUDescs,
@@ -264,22 +297,25 @@ inline bool FrameGraphPassNode::execute(
             device->CreateRenderTargetView(
                 d3dRsc, &rtv.desc, r.descriptor);
 
-            if(auto rtBinding = r.rtdsBinding.as_if<PassResource::RTB>();
-               rtBinding)
+            if constexpr(IS_GRAPHICS)
             {
-                renderTargetHandles.push_back(r.descriptor);
-                if(rtBinding->clear)
+                if(auto rtBinding = r.rtdsBinding.as_if<PassResource::RTB>();
+                    rtBinding)
                 {
-                    cmdList->ClearRenderTargetView(
-                        r.descriptor,
-                        &rtBinding->clearColor.r,
-                        0, nullptr);
-                }
+                    renderTargetHandles.push_back(r.descriptor);
+                    if(rtBinding->clear)
+                    {
+                        cmdList->ClearRenderTargetView(
+                            r.descriptor,
+                            &rtBinding->clearColor.r,
+                            0, nullptr);
+                    }
 
-                if(!firstRTVOrDSVDesc.Width)
-                {
-                    firstRTVOrDSVDesc = rscNodes[r.rscIdx.idx]
-                        .getD3DResource()->GetDesc();
+                    if(!firstRTVOrDSVDesc.Width)
+                    {
+                        firstRTVOrDSVDesc = rscNodes[r.rscIdx.idx]
+                            .getD3DResource()->GetDesc();
+                    }
                 }
             }
         },
@@ -289,30 +325,33 @@ inline bool FrameGraphPassNode::execute(
             device->CreateDepthStencilView(
                 d3dRsc, &dsv.desc, r.descriptor);
 
-            if(auto dsBinding = r.rtdsBinding.as_if<PassResource::DSB>();
-               dsBinding)
+            if constexpr(IS_GRAPHICS)
             {
-                depthStencilHandle = r.descriptor;
-                if(dsBinding->clearDepth || dsBinding->clearStencil)
+                if(auto dsBinding = r.rtdsBinding.as_if<PassResource::DSB>();
+                    dsBinding)
                 {
-                    const D3D12_CLEAR_FLAGS clearFlags =
-                        dsBinding->clearDepth && dsBinding->clearStencil ?
+                    depthStencilHandle = r.descriptor;
+                    if(dsBinding->clearDepth || dsBinding->clearStencil)
+                    {
+                        const D3D12_CLEAR_FLAGS clearFlags =
+                            dsBinding->clearDepth && dsBinding->clearStencil ?
                             D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL :
                             (dsBinding->clearDepth ?
-                             D3D12_CLEAR_FLAG_DEPTH :
-                             D3D12_CLEAR_FLAG_STENCIL);
+                                D3D12_CLEAR_FLAG_DEPTH :
+                                D3D12_CLEAR_FLAG_STENCIL);
 
-                    cmdList->ClearDepthStencilView(
-                        r.descriptor, clearFlags,
-                        dsBinding->clearDethpStencil.depth,
-                        dsBinding->clearDethpStencil.stencil,
-                        0, nullptr);
-                }
+                        cmdList->ClearDepthStencilView(
+                            r.descriptor, clearFlags,
+                            dsBinding->clearDethpStencil.depth,
+                            dsBinding->clearDethpStencil.stencil,
+                            0, nullptr);
+                    }
 
-                if(!firstRTVOrDSVDesc.Width)
-                {
-                    firstRTVOrDSVDesc = rscNodes[r.rscIdx.idx]
-                        .getD3DResource()->GetDesc();
+                    if(!firstRTVOrDSVDesc.Width)
+                    {
+                        firstRTVOrDSVDesc = rscNodes[r.rscIdx.idx]
+                            .getD3DResource()->GetDesc();
+                    }
                 }
             }
         },
@@ -321,58 +360,72 @@ inline bool FrameGraphPassNode::execute(
 
     // bind render target
 
-    if(!renderTargetHandles.empty())
+    if constexpr(IS_GRAPHICS)
     {
-        if(depthStencilHandle)
+        if(!renderTargetHandles.empty())
         {
-            cmdList->OMSetRenderTargets(
-                static_cast<UINT>(renderTargetHandles.size()),
-                renderTargetHandles.data(),
-                false,
-                &*depthStencilHandle);
+            if(depthStencilHandle)
+            {
+                cmdList->OMSetRenderTargets(
+                    static_cast<UINT>(renderTargetHandles.size()),
+                    renderTargetHandles.data(),
+                    false,
+                    &*depthStencilHandle);
+            }
+            else
+            {
+                cmdList->OMSetRenderTargets(
+                    static_cast<UINT>(renderTargetHandles.size()),
+                    renderTargetHandles.data(),
+                    false,
+                    nullptr);
+            }
         }
         else
         {
-            cmdList->OMSetRenderTargets(
-                static_cast<UINT>(renderTargetHandles.size()),
-                renderTargetHandles.data(),
-                false,
-                nullptr);
-        }
-    }
-    else
-    {
-        if(depthStencilHandle)
-        {
-            cmdList->OMSetRenderTargets(
-                0, nullptr, false, &*depthStencilHandle);
-        }
-        else
-        {
-            cmdList->OMSetRenderTargets(
-                0, nullptr, false, nullptr);
+            if(depthStencilHandle)
+            {
+                cmdList->OMSetRenderTargets(
+                    0, nullptr, false, &*depthStencilHandle);
+            }
+            else
+            {
+                cmdList->OMSetRenderTargets(
+                    0, nullptr, false, nullptr);
+            }
         }
     }
 
     // viewport & scissor
 
-    cmdList->RSSetViewports(
-        static_cast<UINT>(viewport_.viewports.size()),
-        viewport_.viewports.data());
+    if constexpr(IS_GRAPHICS)
+    {
+        cmdList->RSSetViewports(
+            static_cast<UINT>(viewport_.viewports.size()),
+            viewport_.viewports.data());
 
-    cmdList->RSSetScissorRects(
-        static_cast<UINT>(viewport_.scissors.size()),
-        viewport_.scissors.data());
+        cmdList->RSSetScissorRects(
+            static_cast<UINT>(viewport_.scissors.size()),
+            viewport_.scissors.data());
+    }
 
     // pipeline state
 
-    if(pipelineState_)
-        cmdList->SetPipelineState(pipelineState_.Get());
+    if constexpr(IS_GRAPHICS)
+    {
+        if(pipelineState_)
+            cmdList->SetPipelineState(pipelineState_.Get());
+    }
 
     // root signature
 
     if(rootSignature_)
-        cmdList->SetGraphicsRootSignature(rootSignature_.Get());
+    {
+        if constexpr(IS_GRAPHICS)
+            cmdList->SetGraphicsRootSignature(rootSignature_.Get());
+        else
+            cmdList->SetComputeRootSignature(rootSignature_.Get());
+    }
 
     // pass func context
 
@@ -393,6 +446,23 @@ inline bool FrameGraphPassNode::execute(
     }
 
     return passCtx.isCmdListSubmissionRequested();
+}
+
+inline bool FrameGraphPassNode::execute(
+    ID3D12Device                        *device,
+    std::vector<FrameGraphResourceNode> &rscNodes,
+    DescriptorRange                      allGPUDescs,
+    DescriptorRange                      allRTVDescs,
+    DescriptorRange                      allDSVDescs,
+    ID3D12GraphicsCommandList           *cmdList) const
+{
+    if(isGraphics_)
+    {
+        return executeImpl<true>(
+            device, rscNodes, allGPUDescs, allRTVDescs, allDSVDescs, cmdList);
+    }
+    return executeImpl<false>(
+        device, rscNodes, allGPUDescs, allRTVDescs, allDSVDescs, cmdList);
 }
 
 inline FrameGraphPassContext::FrameGraphPassContext(
