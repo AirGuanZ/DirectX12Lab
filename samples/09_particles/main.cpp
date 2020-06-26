@@ -16,7 +16,7 @@ void run()
         window.doEvents();
         window.waitForFocus();
 
-        if(window.getKeyboard()->isPressed(KEY_ESCAPE))
+        if(window.getKeyboard()->isDown(KEY_ESCAPE))
             window.setCloseFlag(true);
     }
 
@@ -25,5 +25,13 @@ void run()
 
 int main()
 {
-    std::cout << "hello, world!" << std::endl;
+    try
+    {
+        run();
+    }
+    catch(const std::exception &e)
+    {
+        std::cerr << e.what() << std::endl;
+        return -1;
+    }
 }

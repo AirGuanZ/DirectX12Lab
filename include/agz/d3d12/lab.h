@@ -12,6 +12,7 @@
 #include <agz/d3d12/descriptor/descriptorHeap.h>
 
 #include <agz/d3d12/framegraph/framegraph.h>
+#include <agz/d3d12/framegraph/passContext.h>
 #include <agz/d3d12/framegraph/pipelineState.h>
 #include <agz/d3d12/framegraph/rootSignature.h>
 
@@ -29,7 +30,6 @@
 
 #include <agz/d3d12/sync/cmdQueueWaiter.h>
 #include <agz/d3d12/sync/frameResourceFence.h>
-#include <agz/d3d12/sync/resourceReleaser.h>
 
 #include <agz/d3d12/texture/depthStencilBuffer.h>
 #include <agz/d3d12/texture/mipmap.h>
