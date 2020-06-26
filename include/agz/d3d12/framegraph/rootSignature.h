@@ -35,11 +35,13 @@ struct ImmediateConstants
     D3D12_ROOT_PARAMETER toRootParameter() const;
 };
 
+/**
+ * - CBVRange
+ * - SRVRange
+ * - UAVRange
+ */
 struct DescriptorTable
 {
-    // Args: ConstantBufferViewRange
-    //       ShaderResourceViewRange
-    //       UnorderedAccessViewRange
     template<typename...Args>
     explicit DescriptorTable(D3D12_SHADER_VISIBILITY vis, Args&&...args);
 
@@ -53,6 +55,12 @@ struct DescriptorTable
     std::vector<DescriptorRange> ranges;
 };
 
+/**
+ * - ConstantBufferView
+ * - ImmediateConstants
+ * - DescriptorTable
+ * - StaticSampler
+ */
 struct RootSignature
 {
     template<typename...Args>

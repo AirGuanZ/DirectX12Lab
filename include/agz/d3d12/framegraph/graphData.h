@@ -19,11 +19,15 @@ using FrameGraphPassFunc = std::function<
         FrameGraphPassContext &
         )>;
 
-class FrameGraphResourceNode
+class FrameGraphResourceNode : public misc::uncopyable_t
 {
 public:
 
     FrameGraphResourceNode(bool isExternal, ComPtr<ID3D12Resource> d3dRsc);
+
+    FrameGraphResourceNode(FrameGraphResourceNode &&) noexcept = default;
+
+    FrameGraphResourceNode &operator=(FrameGraphResourceNode &&) noexcept = default;
 
     void setExternalResource(ComPtr<ID3D12Resource> d3dRsc);
 

@@ -12,10 +12,13 @@ struct RangeSize
     UINT size = 1;
 };
 
+/**
+ * - RangeSize elem count of the descriptor range
+ */
 struct CBVRange
 {
     template<typename...Args>
-    CBVRange(
+    explicit CBVRange(
         const BRegister &reg,
         const Args &...args) noexcept;
 
@@ -24,24 +27,28 @@ struct CBVRange
     D3D12_DESCRIPTOR_RANGE range;
 };
 
+/**
+ * - RangeSize elem count of the descriptor range
+ */
 struct SRVRange
 {
     template<typename...Args>
-    SRVRange(
+    explicit SRVRange(
         const TRegister &reg,
         const Args &...args) noexcept;
 
     SRVRange(const SRVRange &) = default;
 
     D3D12_DESCRIPTOR_RANGE range;
-
-    //SRV singleSRV;
 };
 
+/**
+ * - RangeSize elem count of the descriptor range
+ */
 struct UAVRange
 {
     template<typename...Args>
-    UAVRange(
+    explicit UAVRange(
         const URegister &reg,
         const Args &...args) noexcept;
 

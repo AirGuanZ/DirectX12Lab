@@ -13,24 +13,6 @@ namespace detail
         range.NumDescriptors = rangeSize.size;
     }
 
-    //template<typename G>
-    //void _initDTRange(
-    //    G &g, D3D12_DESCRIPTOR_RANGE &range,
-    //    const SRV &singleSRV) noexcept
-    //{
-    //    assert(g.NumDescriptors == 1);
-    //    g.singleSRV = singleSRV;
-    //}
-    //
-    //template<typename G>
-    //void _initDTRange(
-    //    G &g, D3D12_DESCRIPTOR_RANGE &range,
-    //    const UAV &singleUAV) noexcept
-    //{
-    //    assert(g.NumDescriptors == 1);
-    //    g.singleUAV = singleUAV;
-    //}
-
 } // namespace detail
 
 template<typename ... Args>

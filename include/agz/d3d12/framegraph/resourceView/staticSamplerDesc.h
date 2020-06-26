@@ -26,13 +26,15 @@ struct SamplerMaxAnisotropy
     UINT maxAnisotropy;
 };
 
+/**
+ * - D3D12_FILTER. sampler filter. default is D3D12_FILTER_MIN_MAG_MIP_LINEAR
+ * - SamplerAddressMode. default is D3D12_TEXTURE_ADDRESS_MODE_CLAMP * 3
+ * - SamplerLOD. default is 'bias = 0, min = 0, max = FLT_MAX'
+ * - SamplerMaxAnisotropy. default is 16
+ * - D3D12_COMPARISON_FUNC. default is D3D12_COMPARISON_FUNC_ALWAYS
+ */
 struct StaticSampler
 {
-    // Args: D3D12_FILTER
-    //       SamplerAddressMode
-    //       SamplerLOD
-    //       SamplerMaxAnisotropy
-    //       D3D12_COMPARISON_FUNC
     template<typename...Args>
     StaticSampler(
         D3D12_SHADER_VISIBILITY vis,

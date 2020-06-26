@@ -15,6 +15,10 @@ struct _internalRTV
     D3D12_RENDER_TARGET_VIEW_DESC desc;
 };
 
+/**
+ * - DXGI_FORMAT. default value is UNKNOWN (inferred from the rsc)
+ * - MipmapSlice. mipmap slice of rsc
+ */
 struct Tex2DRTV : _internalRTV
 {
     template<typename...Args>
@@ -23,6 +27,10 @@ struct Tex2DRTV : _internalRTV
     Tex2DRTV(const Tex2DRTV &) = default;
 };
 
+/**
+ * - DXGI_FORMAT. default value is UNKNOWN (inferred from the rsc)
+ * - MipmapSlice. mipmap slice of rsc
+ */
 struct Tex2DMSRTV : _internalRTV
 {
     template<typename...Args>

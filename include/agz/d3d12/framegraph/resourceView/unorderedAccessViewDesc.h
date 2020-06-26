@@ -15,21 +15,25 @@ struct _internalUAV
     D3D12_UNORDERED_ACCESS_VIEW_DESC desc;
 };
 
+/**
+ * - DXGI_FORMAT. default is UNKNOWN (inferred from rsc)
+ * - MipmapSlice. mipmap slice of rsc. default is 0
+ */
 struct Tex2DUAV : _internalUAV
 {
-    // Args: Format
-    //       MipmapSlice
     template<typename...Args>
     explicit Tex2DUAV(ResourceIndex rsc, const Args &...args) noexcept;
 
     Tex2DUAV(const Tex2DUAV &) = default;
 };
 
+/**
+ * - DXGI_FORMAT. default is UNKNOWN (inferred from rsc)
+ * - MipmapSlice. mipmap slice of rsc. default is 0
+ * - ArraySlices. array elems of rsc. default is [0]
+ */
 struct Tex2DArrUAV : _internalUAV
 {
-    // Args: Format
-    //       MipmapSlice
-    //       ArraySlices
     template<typename...Args>
     explicit Tex2DArrUAV(ResourceIndex rsc, const Args &...args) noexcept;
 

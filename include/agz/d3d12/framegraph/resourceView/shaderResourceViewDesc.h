@@ -31,35 +31,44 @@ struct _internalSRV
     SRVScope scope;
 };
 
+/**
+ * - DXGI_FORMAT. default value is UNKNOWN (inferred from rsc)
+ * - MipmapSlice. use single mipmap slice of rsc. default is 0
+ * - MipmapSlices. use mipmap slices of rsc
+ * - SRVScope. accessible shader stages. default is 'DEFAULT' in which all
+ *   shader stages can access it
+ */
 struct Tex2DSRV : _internalSRV
 {
-    // Args: MipmapSlice
-    //       MipmapSlice
-    //       Format
-    //       SRVScope
     template<typename...Args>
     explicit Tex2DSRV(ResourceIndex rsc, const Args &...args) noexcept;
 
     Tex2DSRV(const Tex2DSRV &) = default;
 };
 
+/**
+ * - DXGI_FORMAT. default value is UNKNOWN (inferred from rsc)
+ * - MipmapSlice. use single mipmap slice of rsc. default is 0
+ * - MipmapSlices. use mipmap slices of rsc
+ * - ArraySlices. use array elems of rsc. default is [0]
+ * - SRVScope. accessible shader stages. default is 'DEFAULT' in which all
+ *   shader stages can access it
+ */
 struct Tex2DArrSRV : _internalSRV
 {
-    // Args: MipmapSlice
-    //       MipmapSlices
-    //       ArraySlices
-    //       Format
-    //       SRVScope
     template<typename...Args>
     explicit Tex2DArrSRV(ResourceIndex rsc, const Args &...args) noexcept;
 
     Tex2DArrSRV(const Tex2DArrSRV &) = default;
 };
 
+/**
+ * - DXGI_FORMAT. default value is UNKNOWN (inferred from rsc)
+ * - SRVScope. accessible shader stages. default is 'DEFAULT' in which all
+ *   shader stages can access it
+ */
 struct Tex2DMSSRV : _internalSRV
 {
-    // Args: Format
-    //       SRVScope
     template<typename...Args>
     explicit Tex2DMSSRV(ResourceIndex rsc, const Args &...args) noexcept;
 
@@ -68,9 +77,12 @@ struct Tex2DMSSRV : _internalSRV
 
 struct Tex2DMSArrSRV : _internalSRV
 {
-    // Args: ArraySlices
-    //       Format
-    //       SRVScope
+    /**
+     * - DXGI_FORMAT. default value is UNKNOWN (inferred from rsc)
+     * - ArraySlices. use array elems of rsc. default is [0]
+     * - SRVScope. accessible shader stages. default is 'DEFAULT' in which all
+     *   shader stages can access it
+     */
     template<typename...Args>
     explicit Tex2DMSArrSRV(ResourceIndex rsc, const Args &...args) noexcept;
 

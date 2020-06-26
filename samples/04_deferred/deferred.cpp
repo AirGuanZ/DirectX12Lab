@@ -226,7 +226,7 @@ DeferredRenderer::DeferredRenderer(
         fg::DescriptorTable
         {
             D3D12_SHADER_VISIBILITY_PIXEL,
-            fg::s0t0,
+            fg::SRVRange{ fg::s0t0 }
         },
         fg::StaticSampler
         {
@@ -282,9 +282,7 @@ DeferredRenderer::DeferredRenderer(
         fg::DescriptorTable
         {
             D3D12_SHADER_VISIBILITY_PIXEL,
-            fg::s0t0,
-            fg::s0t1,
-            fg::s0t2
+            fg::SRVRange{ fg::s0t0, fg::RangeSize{ 3 } }
         },
         fg::StaticSampler
         {

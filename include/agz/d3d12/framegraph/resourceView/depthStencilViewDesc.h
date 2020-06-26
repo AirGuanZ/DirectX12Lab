@@ -15,6 +15,11 @@ struct _internalDSV
     D3D12_DEPTH_STENCIL_VIEW_DESC desc;
 };
 
+/**
+ *  - DXGI_FORMAT dsv format. default value is UNKNOWN, which
+ *    means it will be inferred from rsc
+ *  - MipmapSlice mipmap slice of rsc
+ */
 struct Tex2DDSV : _internalDSV
 {
     template<typename...Args>
@@ -23,6 +28,11 @@ struct Tex2DDSV : _internalDSV
     Tex2DDSV(const Tex2DDSV &) = default;
 };
 
+/**
+ *  - DXGI_FORMAT dsv format. default value is UNKNOWN, which
+ *    means it will be inferred from rsc
+ *  - MipmapSlice mipmap slice of rsc
+ */
 struct Tex2DMSDSV : _internalDSV
 {
     template<typename...Args>

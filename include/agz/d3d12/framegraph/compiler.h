@@ -28,7 +28,7 @@ public:
 
         DXGI_FORMAT clearFormat = DXGI_FORMAT_UNKNOWN;
 
-        std::pair<bool, D3D12_CLEAR_VALUE> getClearValue() const noexcept;
+        std::optional<D3D12_CLEAR_VALUE> getClearValue() const noexcept;
     };
 
     struct CompilerExternalResourceNode
@@ -98,7 +98,7 @@ public:
         DXGI_FORMAT              clearFormat = DXGI_FORMAT_UNKNOWN);
 
     ResourceIndex addExternalResource(
-        const ComPtr<ID3D12Resource> rscDesc,
+        ComPtr<ID3D12Resource> rscDesc,
         D3D12_RESOURCE_STATES        initialState,
         D3D12_RESOURCE_STATES        finalState);
 
@@ -109,11 +109,61 @@ public:
     PassIndex addComputePass(FrameGraphPassFunc passFunc, Args &&...args);
 
     FrameGraphData compile(
-        ID3D12Device      *device,
         ResourceAllocator &rscAlloc,
         ResourceReleaser  &rscReleaser);
 
 private:
+
+    struct TempRscNode
+    {
+        std::vector<std::pair<PassIndex, D3D12_RESOURCE_STATES>> users;
+    };
+
+    struct RscUsageInfo
+    {
+        std::vector<TempRscNode> rscTempNodes;
+        DescriptorCount gpuDescCount = 0;
+        DescriptorCount rtvDescCount = 0;
+        DescriptorCount dsvDescCount = 0;
+    };
+
+    struct PassRscStates
+    {
+        D3D12_RESOURCE_STATES beforeState;
+        D3D12_RESOURCE_STATES inState;
+        D3D12_RESOURCE_STATES afterState;
+    };
+
+    void inferRscCreationFlagAndClearValue(
+        CompilerPassNode::RscInPass &rscUsage);
+
+    RscUsageInfo collectRscUsages();
+
+    FrameGraphResourceNode createD3DRscNode(
+        const CompilerResourceNode &cn,
+        ResourceAllocator &rscAlloc,
+        ResourceReleaser &rscReleaser) const;
+
+    PassRscStates getPassRscStates(
+        const CompilerPassNode::RscInPass &rscUsage,
+        const CompilerResourceNode &rscNode,
+        const TempRscNode &tempNode) const;
+
+    void inferDescFormat(
+        CompilerPassNode::RscInPass &rscUsage, ID3D12Resource *d3dRsc) const;
+
+    FrameGraphPassNode::PassViewport inferDefaultViewportAndScissor(
+        const CompilerPassNode::RscInPass::ViewDesc *view,
+        const std::vector<FrameGraphResourceNode> &rscNodes);
+
+    FrameGraphPassNode::PassResource createFinalPassResource(
+        CompilerPassNode::RscInPass                  &rscUsage,
+        const std::vector<TempRscNode>               &rscTempNodes,
+        const std::vector<FrameGraphResourceNode>    &rscNodes,
+        DescriptorIndex                              &gpuDescIdx,
+        DescriptorIndex                              &rtvDescIdx,
+        DescriptorIndex                              &dsvDescIdx,
+        const CompilerPassNode::RscInPass::ViewDesc *&rtdsView);
 
     std::vector<CompilerPassNode>     passes_;
     std::vector<CompilerResourceNode> rscs_;
@@ -185,9 +235,10 @@ namespace detail
         FrameGraphCompiler::CompilerPassNode &passNode,
         const DepthStencilBinding &dsb)
     {
+        // IMPROVE: optimize for read-only usage
         FrameGraphCompiler::CompilerPassNode::RscInPass rsc;
         rsc.idx      = dsb.dsv.rsc;
-        rsc.inState  = D3D12_RESOURCE_STATE_DEPTH_WRITE; // IMPROVE: optimize for read-only usage
+        rsc.inState  = D3D12_RESOURCE_STATE_DEPTH_WRITE;
         rsc.viewDesc = dsb.dsv;
 
         rsc.rtdsBinding = FrameGraphPassNode::PassResource::DSB
