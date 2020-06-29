@@ -156,25 +156,17 @@ void run()
 
     // meshes
 
-    SingleCommandList uploadCmdList(device);
-
-    uploadCmdList.resetCommandList();
+    ResourceUploader uploader(window, 1);
 
     std::vector<Mesh> meshes(2);
-    auto meshUploadHeap = meshes[0].loadFromFile(
-        window, gpuHeap.getRootSubheap(), uploadCmdList,
+    meshes[0].loadFromFile(
+        window, uploader, gpuHeap.getRootSubheap(),
         "./asset/03_cube.obj", "./asset/03_texture.png");
-    auto meshUploadHeap2 = meshes[1].loadFromFile(
-        window, gpuHeap.getRootSubheap(), uploadCmdList,
+    meshes[1].loadFromFile(
+        window, uploader, gpuHeap.getRootSubheap(),
         "./asset/03_cube.obj", "./asset/03_texture.png");
 
-    uploadCmdList->Close();
-
-    window.executeOneCmdList(uploadCmdList);
-    window.waitCommandQueueIdle();
-
-    meshUploadHeap.clear();
-    meshUploadHeap2.clear();
+    uploader.waitForIdle();
 
     meshes[0].setWorldTransform(Mat4::identity());
     meshes[1].setWorldTransform(
@@ -182,6 +174,7 @@ void run()
         Trans4::translate({ 0, 0, -3 }));
 
     // light data
+
     struct PointLight
     {
         Vec3 pos;

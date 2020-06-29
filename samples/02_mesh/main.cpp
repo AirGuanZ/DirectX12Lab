@@ -158,20 +158,16 @@ void run()
 
     auto vertexData = loadMesh("./asset/02_mesh.obj");
 
-    cmdList.resetCommandList();
+    ResourceUploader uploader(window, 1);
+
     VertexBuffer<Vertex> vertexBuffer;
-    auto uploadBuf = vertexBuffer.initializeStatic(
-        device,
-        cmdList.getCmdList(),
-        vertexData.size(),
-        vertexData.data());
-    vertexData.clear();
-    cmdList->Close();
+    vertexBuffer.initializeDefault(device, vertexData.size(), {});
 
-    window.executeOneCmdList(cmdList.getCmdList());
+    uploader.uploadBufferData(
+        vertexBuffer, vertexData.data(),
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
-    window.waitCommandQueueIdle();
-    uploadBuf.Reset();
+    uploader.waitForIdle();
 
     // constant buffer
 

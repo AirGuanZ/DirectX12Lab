@@ -28,7 +28,7 @@ namespace impl
         return { winRect.right - winRect.left, winRect.bottom - winRect.top };
     }
 
-} // namespace  impl
+} // namespace impl
 
 struct Window::WindowImplData
 {

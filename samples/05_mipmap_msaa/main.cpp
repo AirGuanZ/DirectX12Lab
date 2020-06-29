@@ -62,9 +62,7 @@ void run()
     // cmd list
 
     PerFrameCommandList frameCmdList(window);
-    SingleCommandList uploadCmdList(device);
-    uploadCmdList.resetCommandList();
-
+    
     // rsc desc heap
 
     DescriptorHeap rscHeap;
@@ -89,9 +87,14 @@ void run()
         { { +1, -1, 0 }, { 1, 1 } }
     };
 
+    ResourceUploader uploader(window, 1);
+
     VertexBuffer<Vertex> vertexBuffer;
-    auto vertexUploader = vertexBuffer.initializeStatic(
-        device, uploadCmdList, 6, vertexData);
+    vertexBuffer.initializeDefault(device, 6, {});
+
+    uploader.uploadBufferData(
+        vertexBuffer, vertexData,
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
     // constant buffer
 
@@ -111,20 +114,41 @@ void run()
         throw std::runtime_error("failed to load texture from image file");
     const auto mipmapChain = constructMipmapChain(std::move(texData), -1);
 
-    std::vector<Texture2D::SubresourceInitData> texInitData;
+    std::vector<ResourceUploader::Tex2DSubInitData> texInitData;
     for(auto &m : mipmapChain)
         texInitData.push_back({ m.raw_data() });
 
-    Texture2D tex;
-    auto texUploader = tex.initializeShaderResource(
-        device, DXGI_FORMAT_R8G8B8A8_UNORM,
-        mipmapChain[0].width(), mipmapChain[0].height(),
-        1, int(mipmapChain.size()), false, false,
-        { uploadCmdList, texInitData.data() });
+    ComPtr<ID3D12Resource> tex;
+
+    AGZ_D3D12_CHECK_HR(
+        device->CreateCommittedResource(
+            agz::get_temp_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+            D3D12_HEAP_FLAG_NONE,
+            agz::get_temp_ptr(CD3DX12_RESOURCE_DESC::Tex2D(
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                static_cast<UINT>(mipmapChain[0].width()),
+                static_cast<UINT>(mipmapChain[0].height()),
+                1,
+                static_cast<UINT16>(mipmapChain.size()))),
+            {}, nullptr,
+            IID_PPV_ARGS(tex.GetAddressOf())));
+
+    uploader.uploadTex2DData(
+        tex, ResourceUploader::Tex2DInitData{ texInitData.data() },
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    srvDesc.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels           = static_cast<UINT16>(mipmapChain.size());
+    srvDesc.Texture2D.MostDetailedMip     = 0;
+    srvDesc.Texture2D.PlaneSlice          = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0;
 
     auto texSRV = rscHeap.allocSingle();
-    tex.createShaderResourceView(texSRV);
-
+    device->CreateShaderResourceView(tex.Get(), &srvDesc, texSRV);
+    
     // msaa render target
 
     Texture2D msaaRT;
@@ -133,14 +157,18 @@ void run()
 
     auto initMSAART = [&]
     {
-        msaaRT.initializeRenderTarget(
+        msaaRT.initialize(
             device,
             DXGI_FORMAT_R8G8B8A8_UNORM,
             window.getImageWidth(),
             window.getImageHeight(),
-            4, 0, { 0, 0, 0, 0 });
-
-        msaaRT.createRenderTargetView(msaaRTVHeap.getCPUHandle(0));
+            1, 1, 4, 0,
+            D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+            agz::get_temp_ptr(CreateClearColorValue(
+                DXGI_FORMAT_R8G8B8A8_UNORM, 0, 0, 0, 0)));
+        
+        msaaRT.createRTV(msaaRTVHeap.getCPUHandle(0));
     };
 
     initMSAART();
@@ -184,18 +212,13 @@ void run()
         .setVertexShader(compiler.compileShader(VERTEX_SHADER, "vs_5_0"))
         .setPixelShader(compiler.compileShader(PIXEL_SHADER, "ps_5_0"))
         .setRenderTargetFormats({ windowDesc.backbufferFormat })
-        .setMultisample(msaaSampleDesc.first, msaaSampleDesc.second)
+        .setMultisample(msaaSampleDesc.Count, msaaSampleDesc.Quality)
         .setInputElements(inputDescs)
         .createPipelineState();
 
     // data upload
 
-    uploadCmdList->Close();
-    window.executeOneCmdList(uploadCmdList);
-    window.waitCommandQueueIdle();
-
-    vertexUploader.Reset();
-    texUploader.Reset();
+    uploader.waitForIdle();
 
     // camera
 
@@ -248,8 +271,11 @@ void run()
 
         // prepare render target
 
-        msaaRT.transit(
-            frameCmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        frameCmdList->ResourceBarrier(
+            1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+                msaaRT,
+                D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+                D3D12_RESOURCE_STATE_RENDER_TARGET)));
 
         const auto msaaRTHandle = msaaRTVHeap.getCPUHandle(0);
         frameCmdList->OMSetRenderTargets(
@@ -298,11 +324,14 @@ void run()
             D3D12_RESOURCE_STATE_RESOLVE_DEST);
         frameCmdList->ResourceBarrier(1, &barrier1);
 
-        msaaRT.transit(
-            frameCmdList, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+        frameCmdList->ResourceBarrier(
+            1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+                msaaRT,
+                D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_RESOLVE_SOURCE)));
 
         frameCmdList->ResolveSubresource(
-            window.getCurrentImage(), 0, msaaRT.getResource(), 0,
+            window.getCurrentImage(), 0, msaaRT, 0,
             windowDesc.backbufferFormat);
 
         const auto barrier2 = CD3DX12_RESOURCE_BARRIER::Transition(

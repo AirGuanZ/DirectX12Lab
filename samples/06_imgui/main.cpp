@@ -27,27 +27,29 @@ void run()
     ImGuiIntegration imgui(
         window, rscHeap.getRawHeap(), imguiSRV, imguiSRV);
 
-    SingleCommandList copyCmdList(device);
-    Texture2D tex;
+    ResourceUploader uploader(window, 1);
 
     const auto texData = agz::texture::texture2d_t<agz::math::color4b>(
         agz::img::load_rgba_from_file("./asset/05_mipmap.png"));
     if(!texData.is_available())
         throw std::runtime_error("failed to load image");
 
-    copyCmdList.resetCommandList();
-    auto uploadTex = tex.initializeShaderResource(
-        device, DXGI_FORMAT_R8G8B8A8_UNORM, texData.width(), texData.height(),
-        copyCmdList, { texData.raw_data() });
+    Texture2D tex;
+    tex.initialize(
+        device,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        texData.width(),
+        texData.height(),
+        1, 1, 1, 0, {}, {});
 
-    copyCmdList->Close();
-    window.executeOneCmdList(copyCmdList);
-    window.waitCommandQueueIdle();
+    uploader.uploadTex2DData(
+        tex, ResourceUploader::Tex2DSubInitData{ texData.raw_data() },
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    uploadTex.Reset();
+    uploader.waitForIdle();
 
     auto texSRV = rscHeap.allocSingle();
-    tex.createShaderResourceView(texSRV);
+    tex.createSRV(texSRV);
 
     ImGui::FileBrowser fileBrowser;
     fileBrowser.SetTitle("hello, imgui!");

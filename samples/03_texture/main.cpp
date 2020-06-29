@@ -120,7 +120,6 @@ void run()
     // cmd list
 
     PerFrameCommandList cmdList(window);
-    SingleCommandList uploadCmdList(window.getDevice());
 
     // copy queue
 
@@ -214,15 +213,10 @@ void run()
     auto prepareDepthStencilBuffer = [&]
     {
         depthStencilBuffer.initialize(
-            device, window.getImageWidth(), window.getImageHeight(),
+            device,
+            window.getImageWidth(),
+            window.getImageHeight(),
             DXGI_FORMAT_D24_UNORM_S8_UINT);
-
-        uploadCmdList.resetCommandList();
-        uploadCmdList->Close();
-
-        window.executeOneCmdList(uploadCmdList.getCmdList());
-
-        window.waitCommandQueueIdle();
     };
 
     prepareDepthStencilBuffer();

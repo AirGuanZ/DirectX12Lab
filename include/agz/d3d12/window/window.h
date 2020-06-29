@@ -7,8 +7,6 @@
 #include <dxgi.h>
 
 #include <agz/d3d12/descriptor/rawDescriptorHeap.h>
-#include <agz/d3d12/pipeline/pipelineState.h>
-#include <agz/d3d12/sync/cmdQueueWaiter.h>
 #include <agz/d3d12/window/keyboard.h>
 #include <agz/d3d12/window/mouse.h>
 #include <agz/d3d12/window/windowEvent.h>

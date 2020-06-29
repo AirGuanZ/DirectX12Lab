@@ -4,6 +4,7 @@
 
 #include <agz/d3d12/buffer/buffer.h>
 #include <agz/d3d12/cmd/singleCmdList.h>
+#include <agz/d3d12/window/window.h>
 
 AGZ_D3D12_BEGIN
 
@@ -35,6 +36,10 @@ public:
         ComPtr<ID3D12CommandQueue> graphicsQueue,
         size_t                     ringCmdListCount);
 
+    ResourceUploader(
+        Window &window,
+        size_t  ringCmdListCount);
+
     ~ResourceUploader();
 
     void uploadBufferData(
@@ -47,6 +52,11 @@ public:
         Buffer               &buffer,
         const void           *data,
         size_t                byteSize,
+        D3D12_RESOURCE_STATES afterState);
+    
+    void uploadBufferData(
+        Buffer               &buffer,
+        const void           *data,
         D3D12_RESOURCE_STATES afterState);
 
     void uploadTex2DData(

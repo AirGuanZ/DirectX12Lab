@@ -240,8 +240,7 @@ void run()
 
     PerFrameCommandList graphicsCmdList(window);
 
-    SingleCommandList uploadCmdList(device);
-    uploadCmdList.resetCommandList();
+    ResourceUploader uploader(window, 1);
 
     // input image
 
@@ -251,10 +250,15 @@ void run()
         throw std::runtime_error("failed to load input image");
 
     Texture2D inputImage;
-    auto uploadTex = inputImage.initializeShaderResource(
-        device, DXGI_FORMAT_R8G8B8A8_UNORM,
+    inputImage.initialize(
+        device,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
         inputImageData.width(), inputImageData.height(),
-        uploadCmdList, { inputImageData.raw_data() });
+        1, 1, 1, 0, {}, {});
+
+    uploader.uploadTex2DData(
+        inputImage, ResourceUploader::Tex2DSubInitData{ inputImageData.raw_data() },
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     // rw texture
     // read from image, write to A
@@ -263,15 +267,21 @@ void run()
 
     Texture2D texA, texB;
 
-    texA.initializeShaderResource(
-        device, DXGI_FORMAT_R8G8B8A8_UNORM,
+    texA.initialize(
+        device,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
         inputImageData.width(), inputImageData.height(),
-        1, 1, true, true, {});
+        1, 1, 1, 0,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    texB.initializeShaderResource(
-        device, DXGI_FORMAT_R8G8B8A8_UNORM,
+    texB.initialize(
+        device,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
         inputImageData.width(), inputImageData.height(),
-        1, 1, true, true, {});
+        1, 1, 1, 0,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     // desc table
 
@@ -279,13 +289,13 @@ void run()
     auto AToBTable     = rscHeap.allocRange(2);
     auto BSRV          = rscHeap.allocSingle();
 
-    inputImage.createShaderResourceView(inputToATable[0]);
-    texA.createUnorderedAccessView(inputToATable[1]);
+    inputImage.createSRV(inputToATable[0]);
+    texA.createUAV(inputToATable[1]);
 
-    texA.createShaderResourceView(AToBTable[0]);
-    texB.createUnorderedAccessView(AToBTable[1]);
+    texA.createSRV(AToBTable[0]);
+    texB.createUAV(AToBTable[1]);
 
-    texB.createShaderResourceView(BSRV);
+    texB.createSRV(BSRV);
 
     // imgui
 
@@ -296,10 +306,7 @@ void run()
 
     // upload
 
-    uploadCmdList->Close();
-    window.executeOneCmdList(uploadCmdList);
-    window.waitCommandQueueIdle();
-    uploadTex.Reset();
+    uploader.waitForIdle();
 
     while(!window.getCloseFlag())
     {
@@ -316,7 +323,11 @@ void run()
 
         // compute part
 
-        texA.transit(graphicsCmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        graphicsCmdList->ResourceBarrier(
+            1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+                texA,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
         
         ID3D12DescriptorHeap *rawRscHeap[] = { rscHeap.getRawHeap() };
         graphicsCmdList->SetDescriptorHeaps(1, rawRscHeap);
@@ -334,8 +345,17 @@ void run()
         graphicsCmdList->Dispatch(
             inputImageData.width(), inputImageData.height(), 1);
 
-        texA.transit(graphicsCmdList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        texB.transit(graphicsCmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        graphicsCmdList->ResourceBarrier(
+            1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+                texA,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+
+        graphicsCmdList->ResourceBarrier(
+            1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+                texB,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
         
         graphicsCmdList->SetComputeRootDescriptorTable(1, AToBTable[0]);
         
@@ -361,7 +381,11 @@ void run()
 
         // graphics part
 
-        texB.transit(graphicsCmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        graphicsCmdList->ResourceBarrier(
+            1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+                texB,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 
         graphicsCmdList->ResourceBarrier(
             1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(

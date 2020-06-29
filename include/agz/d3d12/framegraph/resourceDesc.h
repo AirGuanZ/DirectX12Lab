@@ -33,7 +33,7 @@ struct RscDesc
 struct Tex2DDesc : RscDesc
 {
     template<typename...Args>
-    Tex2DDesc(
+    explicit Tex2DDesc(
         DXGI_FORMAT format, UINT w, UINT h,
         const Args &...args) noexcept;
 };
@@ -49,9 +49,18 @@ struct Tex2DDesc : RscDesc
 struct Tex2DArrDesc : RscDesc
 {
     template<typename...Args>
-    Tex2DArrDesc(
+    explicit Tex2DArrDesc(
         DXGI_FORMAT format, UINT w, UINT h, UINT arrSize,
         const Args &...args) noexcept;
+};
+
+/**
+ * - D3D12_RESOURCE_FLAGS. rsc flag. default is None
+ */
+struct BufDesc : RscDesc
+{
+    template<typename...Args>
+    explicit BufDesc(size_t byteSize, const Args &...args) noexcept;
 };
 
 AGZ_D3D12_FG_END

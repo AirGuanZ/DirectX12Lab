@@ -23,12 +23,12 @@ public:
         size_t        vertexCount;
     };
 
-    std::vector<ComPtr<ID3D12Resource>> loadFromFile(
-        const Window              &window,
-        DescriptorSubHeap         &descHeap,
-        ID3D12GraphicsCommandList *copyCmdList,
-        const std::string         &objFilename,
-        const std::string         &albedoFilename);
+    void loadFromFile(
+        const Window      &window,
+        ResourceUploader  &uploader,
+        DescriptorSubHeap &descHeap,
+        const std::string &objFilename,
+        const std::string &albedoFilename);
 
     void setWorldTransform(const Mat4 &world) noexcept;
 

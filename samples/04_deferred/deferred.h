@@ -23,12 +23,12 @@ public:
         size_t        vertexCount;
     };
 
-    std::vector<ComPtr<ID3D12Resource>> loadFromFile(
-        const Window              &window,
-        DescriptorSubHeap         &descHeap,
-        ID3D12GraphicsCommandList *copyCmdList,
-        const std::string         &objFilename,
-        const std::string         &albedoFilename);
+    void loadFromFile(
+        const Window      &window,
+        ResourceUploader  &uploader,
+        DescriptorSubHeap &descHeap,
+        const std::string &objFilename,
+        const std::string &albedoFilename);
 
     void setWorldTransform(const Mat4 &world) noexcept;
 
@@ -45,7 +45,7 @@ private:
         Mat4 world;
     };
 
-    Texture2D albedo_;
+    ComPtr<ID3D12Resource> albedo_;
     DescriptorRange albedoDescTable_;
 
     Mat4 world_;
@@ -90,9 +90,13 @@ private:
 
     // g-buffer render targets
 
-    Texture2D gBufferPosition_;
-    Texture2D gBufferNormal_;
-    Texture2D gBufferColor_;
+    //Texture2D gBufferPosition_;
+    //Texture2D gBufferNormal_;
+    //Texture2D gBufferColor_;
+
+    ComPtr<ID3D12Resource> gBufferPosition_;
+    ComPtr<ID3D12Resource> gBufferNormal_;
+    ComPtr<ID3D12Resource> gBufferColor_;
 
     RawDescriptorHeap gBufferRTVHeap_;
     DescriptorRange gBufferSRVDescTable_;

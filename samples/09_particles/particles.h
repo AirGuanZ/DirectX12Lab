@@ -8,21 +8,33 @@ class ParticleSystem : public agz::misc::uncopyable_t
 {
 public:
 
-    ParticleSystem();
+    ParticleSystem(
+        ID3D12Device *device, int frameCount,
+        int particleCnt);
 
-    // set max count of particles, count of new particles per seconds,
-    // and lifetime of each particle (in ms)
-    void setParticles(
-        int maxCount, int cntPerFrame, float lifetimeMS);
+    // called right before the fg execution
+    void update(fg::FrameGraph &graph);
 
-    // set pos, dir, initial vel and range of the emitter
-    void setEmitter(
-        const Vec3 &pos, const Vec3 &dir,
-        float vel, float rangeDeg);
+    // register passes in framegraph
+    void initPasses(fg::FrameGraph &graph, fg::ResourceIndex renderTarget);
 
-    // update the emitter in each frame
-    void update(int frameIndex, float elapsedTimeMS);
+private:
 
-    // register particle pass(es) in framegraph
-    void addGraphPass(fg::FrameGraph &graph, fg::ResourceIndex renderTarget);
+    struct ParticleData
+    {
+        Vec3 position;
+        float pad0 = 0;
+        Vec3 velocity;
+        float pad1 = 0;
+    };
+
+    // in each frame:
+    // 0. swap prevData with nextData
+    // 1. fill nextData according to prevData
+    // 2. draw particles according to prevData
+    fg::ResourceIndex prevData_;
+    fg::ResourceIndex nextData_;
+
+    ComPtr<ID3D12Resource> dataA_;
+    ComPtr<ID3D12Resource> dataB_;
 };

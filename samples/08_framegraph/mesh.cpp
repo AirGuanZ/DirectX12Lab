@@ -3,12 +3,12 @@
 
 #include "./mesh.h"
 
-std::vector<ComPtr<ID3D12Resource>> Mesh::loadFromFile(
-    const Window              &window,
-    DescriptorSubHeap         &descHeap,
-    ID3D12GraphicsCommandList *copyCmdList,
-    const std::string         &objFilename,
-    const std::string         &albedoFilename)
+void Mesh::loadFromFile(
+    const Window      &window,
+    ResourceUploader  &uploader,
+    DescriptorSubHeap &descHeap,
+    const std::string &objFilename,
+    const std::string &albedoFilename)
 {
     albedoDescTable_ = descHeap.allocRange(1);
 
@@ -24,13 +24,18 @@ std::vector<ComPtr<ID3D12Resource>> Mesh::loadFromFile(
             "failed to load image data from " + albedoFilename);
     }
 
-    ret.push_back(albedo_.initializeShaderResource(
-        window.getDevice(), DXGI_FORMAT_R8G8B8A8_UNORM,
+    albedo_.initialize(
+        window.getDevice(),
+        DXGI_FORMAT_R8G8B8A8_UNORM,
         imgData.width(), imgData.height(),
-        copyCmdList, { imgData.raw_data() }));
+        1, 1, 1, 0, {}, {});
 
-    albedo_.createShaderResourceView(albedoDescTable_[0]);
+    uploader.uploadTex2DData(
+        albedo_, ResourceUploader::Tex2DSubInitData{ imgData.raw_data() },
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
+    albedo_.createSRV(albedoDescTable_[0]);
+    
     // constant buffer
     
     vsTransform_.initializeDynamic(window.getDevice(), window.getImageCount());
@@ -48,10 +53,11 @@ std::vector<ComPtr<ID3D12Resource>> Mesh::loadFromFile(
         return Vertex{ v.position, v.normal, v.tex_coord };
     });
 
-    ret.push_back(vertexBuffer_.initializeStatic(
-        window.getDevice(), copyCmdList, vertexData.size(), vertexData.data()));
+    vertexBuffer_.initializeDefault(window.getDevice(), vertexData.size(), {});
 
-    return ret;
+    uploader.uploadBufferData(
+        vertexBuffer_, vertexData.data(),
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 }
 
 void Mesh::setWorldTransform(const Mat4 &world) noexcept

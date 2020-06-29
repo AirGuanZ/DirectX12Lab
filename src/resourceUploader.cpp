@@ -4,6 +4,22 @@
 
 AGZ_D3D12_BEGIN
 
+namespace
+{
+    ComPtr<ID3D12CommandQueue> createCopyQueue(ID3D12Device *device)
+    {
+        D3D12_COMMAND_QUEUE_DESC copyQueueDesc = {};
+        copyQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+
+        ComPtr<ID3D12CommandQueue> copyQueue;
+        AGZ_D3D12_CHECK_HR(
+            device->CreateCommandQueue(
+                &copyQueueDesc, IID_PPV_ARGS(copyQueue.GetAddressOf())));
+
+        return copyQueue;
+    }
+}
+
 ResourceUploader::ResourceUploader(
     ComPtr<ID3D12Device>       device,
     ComPtr<ID3D12CommandQueue> copyQueue,
@@ -44,6 +60,18 @@ ResourceUploader::ResourceUploader(
         c.cmdList.initialize(device_.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
     }
     graphicsCmdLists_[0].cmdList.resetCommandList();
+}
+
+ResourceUploader::ResourceUploader(
+    Window &window,
+    size_t  ringCmdListCount)
+    : ResourceUploader(
+        window.getDevice(),
+        createCopyQueue(window.getDevice()),
+        window.getCommandQueue(),
+        ringCmdListCount)
+{
+
 }
 
 ResourceUploader::~ResourceUploader()
@@ -106,6 +134,14 @@ void ResourceUploader::uploadBufferData(
     D3D12_RESOURCE_STATES afterState)
 {
     uploadBufferData(buffer.getResource(), data, byteSize, afterState);
+}
+
+void ResourceUploader::uploadBufferData(
+    Buffer                &buffer,
+    const void           *data,
+    D3D12_RESOURCE_STATES afterState)
+{
+    uploadBufferData(buffer, data, buffer.getTotalByteSize(), afterState);
 }
 
 void ResourceUploader::uploadTex2DData(
@@ -252,6 +288,8 @@ void ResourceUploader::submit()
     finishFence_->SetEventOnCompletion(
         graphicsCmdLists_[curCmdListIdx_].expectedFenceValue, nullptr);
 
+    copyCmdLists_[curCmdListIdx_].expectedFenceValue =
+        nextExpectedFinishFenceValue_;
     graphicsCmdLists_[curCmdListIdx_].expectedFenceValue =
         nextExpectedFinishFenceValue_;
 

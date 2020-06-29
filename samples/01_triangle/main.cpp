@@ -119,21 +119,17 @@ void run()
         { { +0.5f, -0.5f, +0.5f }, { 0, 0, 1 } }
     };
 
-    cmdList.resetCommandList();
+    ResourceUploader uploader(window, 1);
 
     VertexBuffer<Vertex> vertexBuffer;
-    auto uploadBuf = vertexBuffer.initializeStatic(
-        window.getDevice(),
-        cmdList.getCmdList(),
-        int(agz::array_size(vertexData)),
-        vertexData);
-    
-    cmdList->Close();
-    
-    window.executeOneCmdList(cmdList.getCmdList());
-    
-    window.waitCommandQueueIdle();
-    uploadBuf.Reset();
+    vertexBuffer.initializeDefault(
+        window.getDevice(), 3, D3D12_RESOURCE_STATE_COMMON);
+
+    uploader.uploadBufferData(
+        vertexBuffer, vertexData,
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+
+    uploader.waitForIdle();
 
     // mainloop
 

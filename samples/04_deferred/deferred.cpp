@@ -127,12 +127,12 @@ float4 main(PSInput input) : SV_TARGET
 )___";
 }
 
-std::vector<ComPtr<ID3D12Resource>> Mesh::loadFromFile(
-    const Window              &window,
-    DescriptorSubHeap         &descHeap,
-    ID3D12GraphicsCommandList *copyCmdList,
-    const std::string         &objFilename,
-    const std::string         &albedoFilename)
+void Mesh::loadFromFile(
+    const Window      &window,
+    ResourceUploader  &uploader,
+    DescriptorSubHeap &descHeap,
+    const std::string &objFilename,
+    const std::string &albedoFilename)
 {
     albedoDescTable_ = descHeap.allocRange(1);
 
@@ -148,12 +148,31 @@ std::vector<ComPtr<ID3D12Resource>> Mesh::loadFromFile(
             "failed to load image data from " + albedoFilename);
     }
 
-    ret.push_back(albedo_.initializeShaderResource(
-        window.getDevice(), DXGI_FORMAT_R8G8B8A8_UNORM,
-        imgData.width(), imgData.height(),
-        copyCmdList, { imgData.raw_data() }));
+    AGZ_D3D12_CHECK_HR(
+        window.getDevice()->CreateCommittedResource(
+            agz::get_temp_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+            D3D12_HEAP_FLAG_NONE,
+            agz::get_temp_ptr(CD3DX12_RESOURCE_DESC::Tex2D(
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                imgData.width(), imgData.height(), 1, 1)),
+            D3D12_RESOURCE_STATE_COMMON, nullptr,
+            IID_PPV_ARGS(albedo_.GetAddressOf())));
 
-    albedo_.createShaderResourceView(albedoDescTable_[0]);
+    uploader.uploadTex2DData(
+        albedo_, ResourceUploader::Tex2DSubInitData{ imgData.raw_data() },
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    srvDesc.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels           = 1;
+    srvDesc.Texture2D.MostDetailedMip     = 0;
+    srvDesc.Texture2D.PlaneSlice          = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0;
+
+    window.getDevice()->CreateShaderResourceView(
+        albedo_.Get(), &srvDesc, albedoDescTable_[0]);
 
     // constant buffer
     
@@ -172,10 +191,12 @@ std::vector<ComPtr<ID3D12Resource>> Mesh::loadFromFile(
         return Vertex{ v.position, v.normal, v.tex_coord };
     });
 
-    ret.push_back(vertexBuffer_.initializeStatic(
-        window.getDevice(), copyCmdList, vertexData.size(), vertexData.data()));
+    vertexBuffer_.initializeDefault(
+        window.getDevice(), vertexData.size(), {});
 
-    return ret;
+    uploader.uploadBufferData(
+        vertexBuffer_, vertexData.data(),
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 }
 
 void Mesh::setWorldTransform(const Mat4 &world) noexcept
@@ -325,12 +346,23 @@ void DeferredRenderer::setLight(
 
 void DeferredRenderer::startGBuffer(ID3D12GraphicsCommandList *cmdList)
 {
-    gBufferPosition_.transit(
-        cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    gBufferNormal_.transit(
-        cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    gBufferColor_.transit(
-        cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    cmdList->ResourceBarrier(
+        1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+            gBufferPosition_.Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_RENDER_TARGET)));
+
+    cmdList->ResourceBarrier(
+        1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+            gBufferNormal_.Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_RENDER_TARGET)));
+
+    cmdList->ResourceBarrier(
+        1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+            gBufferColor_.Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_RENDER_TARGET)));
 
     auto rtvHandle = gBufferRTVHeap_.getCPUHandle(0);
     auto dsvHandle = depthStencilBuffer_.getDSVHandle();
@@ -356,12 +388,23 @@ void DeferredRenderer::startGBuffer(ID3D12GraphicsCommandList *cmdList)
 
 void DeferredRenderer::endGBuffer(ID3D12GraphicsCommandList *cmdList)
 {
-    gBufferPosition_.transit(
-        cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    gBufferNormal_.transit(
-        cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    gBufferColor_.transit(
-        cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmdList->ResourceBarrier(
+        1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+            gBufferPosition_.Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+
+    cmdList->ResourceBarrier(
+        1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+            gBufferNormal_.Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+
+    cmdList->ResourceBarrier(
+        1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
+            gBufferColor_.Get(),
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
 void DeferredRenderer::render(ID3D12GraphicsCommandList *cmdList)
@@ -393,20 +436,78 @@ void DeferredRenderer::createGBuffers()
     const int width  = window_.getImageWidth();
     const int height = window_.getImageHeight();
 
-    gBufferPosition_.initializeRenderTarget(
-        device, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, 1, 0, { 0, 0, 0, 0 });
-    gBufferNormal_.initializeRenderTarget(
-        device, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, 1, 0, { 0, 0, 0, 0 });
-    gBufferColor_.initializeRenderTarget(
-        device, DXGI_FORMAT_R8G8B8A8_UNORM, width, height, 1, 0, { 0, 0, 0, 0 });
+    AGZ_D3D12_CHECK_HR(
+        device->CreateCommittedResource(
+            agz::get_temp_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+            D3D12_HEAP_FLAG_NONE,
+            agz::get_temp_ptr(CD3DX12_RESOURCE_DESC::Tex2D(
+                DXGI_FORMAT_R32G32B32A32_FLOAT,
+                width, height, 1, 1, 1, 0,
+                D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            agz::get_temp_ptr(
+                CreateClearColorValue(
+                    DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, 0, 0)),
+            IID_PPV_ARGS(gBufferPosition_.GetAddressOf())));
 
-    gBufferPosition_.createRenderTargetView(gBufferRTVHeap_.getCPUHandle(0));
-    gBufferNormal_.createRenderTargetView(gBufferRTVHeap_.getCPUHandle(1));
-    gBufferColor_.createRenderTargetView(gBufferRTVHeap_.getCPUHandle(2));
+    AGZ_D3D12_CHECK_HR(
+        device->CreateCommittedResource(
+            agz::get_temp_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+            D3D12_HEAP_FLAG_NONE,
+            agz::get_temp_ptr(CD3DX12_RESOURCE_DESC::Tex2D(
+                DXGI_FORMAT_R32G32B32A32_FLOAT,
+                width, height, 1, 1, 1, 0,
+                D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            agz::get_temp_ptr(
+                CreateClearColorValue(
+                    DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, 0, 0)),
+            IID_PPV_ARGS(gBufferNormal_.GetAddressOf())));
 
-    gBufferPosition_.createShaderResourceView(gBufferSRVDescTable_[0]);
-    gBufferNormal_.createShaderResourceView(gBufferSRVDescTable_[1]);
-    gBufferColor_.createShaderResourceView(gBufferSRVDescTable_[2]);
+    AGZ_D3D12_CHECK_HR(
+        device->CreateCommittedResource(
+            agz::get_temp_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+            D3D12_HEAP_FLAG_NONE,
+            agz::get_temp_ptr(CD3DX12_RESOURCE_DESC::Tex2D(
+                DXGI_FORMAT_R8G8B8A8_UNORM,
+                width, height, 1, 1, 1, 0,
+                D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            agz::get_temp_ptr(
+                CreateClearColorValue(
+                    DXGI_FORMAT_R8G8B8A8_UNORM, 0, 0, 0, 0)),
+            IID_PPV_ARGS(gBufferColor_.GetAddressOf())));
+
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
+    rtvDesc.Format               = DXGI_FORMAT_UNKNOWN;
+    rtvDesc.ViewDimension        = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice   = 0;
+    rtvDesc.Texture2D.PlaneSlice = 0;
+
+    device->CreateRenderTargetView(
+        gBufferPosition_.Get(), &rtvDesc, gBufferRTVHeap_.getCPUHandle(0));
+    device->CreateRenderTargetView(
+        gBufferNormal_.Get(), &rtvDesc, gBufferRTVHeap_.getCPUHandle(1));
+    device->CreateRenderTargetView(
+        gBufferColor_.Get(), &rtvDesc, gBufferRTVHeap_.getCPUHandle(2));
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    srvDesc.Format                        = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    srvDesc.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels           = 1;
+    srvDesc.Texture2D.MostDetailedMip     = 0;
+    srvDesc.Texture2D.PlaneSlice          = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0;
+
+    device->CreateShaderResourceView(
+        gBufferPosition_.Get(), &srvDesc, gBufferSRVDescTable_[0]);
+    device->CreateShaderResourceView(
+        gBufferNormal_.Get(), &srvDesc, gBufferSRVDescTable_[1]);
+
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    device->CreateShaderResourceView(
+        gBufferColor_.Get(), &srvDesc, gBufferSRVDescTable_[2]);
 
     depthStencilBuffer_.initialize(
         device, width, height, DXGI_FORMAT_D24_UNORM_S8_UINT);

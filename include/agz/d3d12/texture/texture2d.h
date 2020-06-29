@@ -7,153 +7,64 @@
 
 AGZ_D3D12_BEGIN
 
-class Texture2D
+class Texture2D : public misc::uncopyable_t
 {
 public:
 
-    enum SpecialUsage
-    {
-        None,
-        RenderTarget,
-        DepthStencil,
-        UnorderedAccess
-    };
+    Texture2D() = default;
 
-    struct SubresourceInitData
-    {
-        SubresourceInitData(
-            const void *data = nullptr, size_t rowSize = 0) noexcept
-            : data(data), rowSize(rowSize)
-        {
-            
-        }
+    Texture2D(Texture2D &&) noexcept = default;
 
-        const void *data;
-        size_t rowSize;
-    };
+    Texture2D &operator=(Texture2D &&) noexcept = default;
 
-    struct InitData
-    {
-        ID3D12GraphicsCommandList *copyCmdList = nullptr;
-        const SubresourceInitData *subrscInitData = nullptr;
-    };
-
-    Texture2D();
-
-    void attach(
-        ID3D12Device          *device,
-        ComPtr<ID3D12Resource> rsc,
-        D3D12_RESOURCE_STATES  state);
-
-    void initializeDefault(
-        ID3D12Device            *device,
-        DXGI_FORMAT              format,
-        int                      width,
-        int                      height,
-        int                      arraySize,
-        int                      mipmapCount,
-        SpecialUsage             specialUsage,
-        int                      sampleCount,
-        int                      sampleQuality,
-        D3D12_RESOURCE_STATES    initStates,
-        const D3D12_CLEAR_VALUE *clearValue);
-    
-    ComPtr<ID3D12Resource> initializeShaderResource(
-        ID3D12Device              *device,
-        DXGI_FORMAT                format,
-        int                        width,
-        int                        height,
-        ID3D12GraphicsCommandList *cmdList,
-        const SubresourceInitData &initData);
-    
-    ComPtr<ID3D12Resource> initializeShaderResource(
-        ID3D12Device   *device,
-        DXGI_FORMAT     format,
-        int             width,
-        int             height,
-        int             arraySize,
-        int             mipmapCount,
-        bool            allowUAV,
-        bool            withUAVState,
-        const InitData &initData);
-
-    void initializeDepthStencil(
+    void initialize(
         ID3D12Device *device,
-        DXGI_FORMAT   format,
-        int           width,
-        int           height,
-        int           sampleCount,
-        int           sampleQuality,
-        float         expectedClearDepth,
-        UINT8         expectedClearStencil);
-
-    void initializeRenderTarget(
-        ID3D12Device        *device,
-        DXGI_FORMAT          format,
-        int                  width,
-        int                  height,
-        int                  sampleCount,
-        int                  sampleQuality,
-        const math::color4f &expectedClearColor);
-    
-    ComPtr<ID3D12Resource> initialize(
-        ID3D12Device            *device,
-        DXGI_FORMAT              texelFormat,
-        int                      width,
-        int                      height,
-        int                      arraySize,
-        int                      mipmapCount,
-        int                      sampleCount,
-        int                      sampleQuality,
-        const InitData          &initData,
-        SpecialUsage             specialUsage,
-        const D3D12_CLEAR_VALUE &expectedClearValue,
-        D3D12_RESOURCE_STATES    initState);
+        DXGI_FORMAT format,
+        int width, int height,
+        int depth, int mipCnt,
+        int sampleCnt, int sampleQua,
+        D3D12_RESOURCE_FLAGS flags,
+        D3D12_RESOURCE_STATES states,
+        const D3D12_CLEAR_VALUE *clearValue = nullptr);
 
     bool isAvailable() const noexcept;
 
     void destroy();
 
-    ID3D12Resource *getResource() const noexcept;
+    void createSRV(
+        D3D12_CPU_DESCRIPTOR_HANDLE output) const;
 
-    D3D12_RESOURCE_STATES getState() const noexcept;
+    void createSRV(
+        DXGI_FORMAT format,
+        int mipBeg, int mipCnt,
+        D3D12_CPU_DESCRIPTOR_HANDLE output) const;
 
-    void setState(D3D12_RESOURCE_STATES state) noexcept;
+    void createRTV(
+        D3D12_CPU_DESCRIPTOR_HANDLE output) const;
 
-    void transit(
-        ID3D12GraphicsCommandList *cmdList,
-        D3D12_RESOURCE_STATES      newState);
+    void createRTV(
+        DXGI_FORMAT format,
+        int mipIdx,
+        D3D12_CPU_DESCRIPTOR_HANDLE output) const;
 
-    void createShaderResourceView(
-        D3D12_CPU_DESCRIPTOR_HANDLE srvHandle,
-        int                         baseMipmapIdx = 0,
-        int                         mipmapCount   = -1,
-        int                         arrayStart    = 0,
-        int                         arrayCount    = 1) const;
+    void createUAV(
+        D3D12_CPU_DESCRIPTOR_HANDLE output) const;
 
-    void createRenderTargetView(
-        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle,
-        int                         mipmapIdx = 0) const;
+    void createUAV(
+        DXGI_FORMAT format,
+        int mipIdx,
+        D3D12_CPU_DESCRIPTOR_HANDLE output) const;
 
-    void createDepthStencilView(
-        D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle,
-        int                         mipmapIdx = 0) const;
+    DXGI_SAMPLE_DESC getMultisample() const noexcept;
 
-    void createUnorderedAccessView(
-        D3D12_CPU_DESCRIPTOR_HANDLE uavHandle,
-        int                         mipmapIdx = 0,
-        int                         arrayIdx  = 0,
-        int                         arraySize = 1) const;
+    operator ID3D12Resource *() const noexcept;
 
-    std::pair<int, int> getMultisample() const noexcept;
+    operator ComPtr<ID3D12Resource>() const noexcept;
 
 private:
 
-    ID3D12Device *device_;
-
+    ComPtr<ID3D12Device> device_;
     ComPtr<ID3D12Resource> rsc_;
-
-    D3D12_RESOURCE_STATES state_;
 };
 
 AGZ_D3D12_END

@@ -1,7 +1,9 @@
 #pragma once
 
-#include <string>
+#include <d3d12.h>
+#include <dxgi.h>
 
+#include <string>
 #include <system_error>
 
 #include <agz/utility/math.h>
@@ -31,6 +33,28 @@ public:
 
     using runtime_error::runtime_error;
 };
+
+inline D3D12_CLEAR_VALUE CreateClearColorValue(
+    DXGI_FORMAT format, float r, float g, float b, float a) noexcept
+{
+    D3D12_CLEAR_VALUE ret;
+    ret.Format   = format;
+    ret.Color[0] = r;
+    ret.Color[1] = g;
+    ret.Color[2] = b;
+    ret.Color[3] = a;
+    return ret;
+}
+
+inline D3D12_CLEAR_VALUE CreateClearDepthStencilValue(
+    DXGI_FORMAT format, float d, UINT8 s) noexcept
+{
+    D3D12_CLEAR_VALUE ret;
+    ret.Format               = format;
+    ret.DepthStencil.Depth   = d;
+    ret.DepthStencil.Stencil = s;
+    return ret;
+}
 
 #define AGZ_D3D12_DECL_EVENT_MGR_HANDLER(EventMgr, EventName)                  \
     void attach(event::receiver_t<EventName> *handler)                         \

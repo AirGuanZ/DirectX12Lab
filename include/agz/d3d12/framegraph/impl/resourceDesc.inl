@@ -63,4 +63,12 @@ Tex2DArrDesc::Tex2DArrDesc(
     InvokeAll([&] { detail::_initRscDesc(desc, args); }...);
 }
 
+template<typename ... Args>
+BufDesc::BufDesc(size_t byteSize, const Args &... args) noexcept
+{
+    desc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
+
+    InvokeAll([&] { detail::_initRscDesc(desc, args); }...);
+}
+
 AGZ_D3D12_FG_END
