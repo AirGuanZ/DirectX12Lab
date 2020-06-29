@@ -30,6 +30,7 @@
 
 #include <agz/d3d12/sync/cmdQueueWaiter.h>
 #include <agz/d3d12/sync/frameResourceFence.h>
+#include <agz/d3d12/sync/resourceUploader.h>
 
 #include <agz/d3d12/texture/depthStencilBuffer.h>
 #include <agz/d3d12/texture/mipmap.h>

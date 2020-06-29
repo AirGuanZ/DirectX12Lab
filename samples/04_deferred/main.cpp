@@ -30,7 +30,7 @@ void run()
 
     // mesh
 
-    GraphicsCommandList uploadCmdList(device);
+    SingleCommandList uploadCmdList(device);
 
     uploadCmdList.resetCommandList();
 

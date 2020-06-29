@@ -240,7 +240,7 @@ void run()
 
     PerFrameCommandList graphicsCmdList(window);
 
-    GraphicsCommandList uploadCmdList(device);
+    SingleCommandList uploadCmdList(device);
     uploadCmdList.resetCommandList();
 
     // input image

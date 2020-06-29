@@ -6,16 +6,20 @@
 
 AGZ_D3D12_BEGIN
 
-class GraphicsCommandList
+class SingleCommandList
 {
     ComPtr<ID3D12CommandAllocator> alloc_;
     ComPtr<ID3D12GraphicsCommandList> cmdList_;
 
 public:
 
-    explicit GraphicsCommandList(ID3D12Device *device = nullptr);
+    explicit SingleCommandList(
+        ID3D12Device           *device = nullptr,
+        D3D12_COMMAND_LIST_TYPE type   = D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-    void initialize(ID3D12Device *device);
+    void initialize(
+        ID3D12Device           *device,
+        D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT);
 
     bool isAvailable() const noexcept;
 
@@ -32,24 +36,27 @@ public:
     operator ID3D12GraphicsCommandList *() noexcept;
 };
 
-inline GraphicsCommandList::GraphicsCommandList(ID3D12Device *device)
+inline SingleCommandList::SingleCommandList(
+    ID3D12Device           *device,
+    D3D12_COMMAND_LIST_TYPE type)
 {
     if(device)
-        initialize(device);
+        initialize(device, type);
 }
 
-inline void GraphicsCommandList::initialize(ID3D12Device *device)
+inline void SingleCommandList::initialize(
+    ID3D12Device           *device,
+    D3D12_COMMAND_LIST_TYPE type)
 {
     misc::scope_guard_t destroyGuard([&] { destroy(); });
 
     AGZ_D3D12_CHECK_HR(
         device->CreateCommandAllocator(
-            D3D12_COMMAND_LIST_TYPE_DIRECT,
-            IID_PPV_ARGS(alloc_.GetAddressOf())));
+            type, IID_PPV_ARGS(alloc_.GetAddressOf())));
 
     AGZ_D3D12_CHECK_HR(
         device->CreateCommandList(
-            0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc_.Get(), nullptr,
+            0, type, alloc_.Get(), nullptr,
             IID_PPV_ARGS(cmdList_.GetAddressOf())));
 
     cmdList_->Close();
@@ -57,39 +64,39 @@ inline void GraphicsCommandList::initialize(ID3D12Device *device)
     destroyGuard.dismiss();
 }
 
-inline bool GraphicsCommandList::isAvailable() const noexcept
+inline bool SingleCommandList::isAvailable() const noexcept
 {
     return cmdList_ != nullptr;
 }
 
-inline void GraphicsCommandList::destroy()
+inline void SingleCommandList::destroy()
 {
     alloc_.Reset();
     cmdList_.Reset();
 }
 
-inline void GraphicsCommandList::resetCommandList()
+inline void SingleCommandList::resetCommandList()
 {
     alloc_->Reset();
     cmdList_->Reset(alloc_.Get(), nullptr);
 }
 
-inline ID3D12GraphicsCommandList *GraphicsCommandList::operator->() noexcept
+inline ID3D12GraphicsCommandList *SingleCommandList::operator->() noexcept
 {
     return cmdList_.Get();
 }
 
-inline ID3D12GraphicsCommandList *GraphicsCommandList::getCmdList() noexcept
+inline ID3D12GraphicsCommandList *SingleCommandList::getCmdList() noexcept
 {
     return cmdList_.Get();
 }
 
-inline ID3D12CommandAllocator *GraphicsCommandList::getAlloc() noexcept
+inline ID3D12CommandAllocator *SingleCommandList::getAlloc() noexcept
 {
     return alloc_.Get();
 }
 
-inline GraphicsCommandList::operator struct ID3D12GraphicsCommandList*() noexcept
+inline SingleCommandList::operator struct ID3D12GraphicsCommandList*() noexcept
 {
     return cmdList_.Get();
 }

@@ -156,7 +156,7 @@ void run()
 
     // meshes
 
-    GraphicsCommandList uploadCmdList(device);
+    SingleCommandList uploadCmdList(device);
 
     uploadCmdList.resetCommandList();
 

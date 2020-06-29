@@ -35,6 +35,51 @@ ComPtr<ID3D12Resource> Texture2D::initializeShaderResource(
         device, format, width, height, 1, 1, false, false, iD);
 }
 
+void Texture2D::initializeDefault(
+    ID3D12Device            *device,
+    DXGI_FORMAT              format,
+    int                      width,
+    int                      height,
+    int                      arraySize,
+    int                      mipmapCount,
+    SpecialUsage             specialUsage,
+    int                      sampleCount,
+    int                      sampleQuality,
+    D3D12_RESOURCE_STATES    initStates,
+    const D3D12_CLEAR_VALUE *clearValue)
+{
+    destroy();
+
+    D3D12_RESOURCE_FLAGS createFlags = D3D12_RESOURCE_FLAG_NONE;
+    switch(specialUsage)
+    {
+    case None:
+        createFlags = D3D12_RESOURCE_FLAG_NONE;
+        break;
+    case UnorderedAccess:
+        createFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        break;
+    case DepthStencil:
+        createFlags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+        break;
+    case RenderTarget:
+        createFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        break;
+    }
+
+    const auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
+        format, width, height, arraySize, mipmapCount,
+        sampleCount, sampleQuality, createFlags);
+
+    device->CreateCommittedResource(
+        get_temp_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+        D3D12_HEAP_FLAG_NONE, &desc, initStates, clearValue,
+        IID_PPV_ARGS(rsc_.GetAddressOf()));
+
+    device_ = device;
+    state_ = initStates;
+}
+
 ComPtr<ID3D12Resource> Texture2D::initializeShaderResource(
     ID3D12Device   *device,
     DXGI_FORMAT     format,

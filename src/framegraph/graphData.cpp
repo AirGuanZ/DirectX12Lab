@@ -76,12 +76,17 @@ bool FrameGraphPassNode::executeImpl(
             inBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
                 d3dRsc, r.beforeState, r.inState));
         }
+        else if(r.beforeState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+            inBarriers.push_back(CD3DX12_RESOURCE_BARRIER::UAV(d3dRsc));
 
         if(r.inState != r.afterState)
         {
             outBarriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
                 d3dRsc, r.inState, r.afterState));
         }
+
+        // IMPROVE: out UAV barrier is omitted, which may cause problems
+        // if user uses it through uav after the fg execution
     }
 
     if(!inBarriers.empty())

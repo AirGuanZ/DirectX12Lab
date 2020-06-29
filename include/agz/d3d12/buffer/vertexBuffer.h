@@ -31,6 +31,12 @@ public:
         size_t                     vertexCount,
         size_t                     vertexSize,
         const void                *initData);
+
+    void initializeDefault(
+        ID3D12Device         *device,
+        size_t                vertexCount,
+        size_t                vertexSize,
+        D3D12_RESOURCE_STATES initStates);
     
     void initializeDynamic(
         ID3D12Device              *device,
@@ -47,6 +53,10 @@ public:
     size_t getVertexCount() const noexcept;
 
     D3D12_VERTEX_BUFFER_VIEW getView() const noexcept;
+
+    operator Buffer &() noexcept;
+
+    operator const Buffer &() const noexcept;
 };
 
 template<typename Vertex>
@@ -74,6 +84,11 @@ public:
         ID3D12GraphicsCommandList *copyCmdList,
         size_t                     vertexCount,
         const Vertex              *initData);
+
+    void initializeDefault(
+        ID3D12Device         *device,
+        size_t                vertexCount,
+        D3D12_RESOURCE_STATES initStates);
     
     void initializeDynamic(
         ID3D12Device              *device,
@@ -91,6 +106,10 @@ public:
     operator RawVertexBuffer &() noexcept;
 
     operator const RawVertexBuffer &() const noexcept;
+
+    operator Buffer &() noexcept;
+
+    operator const Buffer &() const noexcept;
 };
 
 inline RawVertexBuffer::RawVertexBuffer(RawVertexBuffer &&other) noexcept
@@ -146,6 +165,24 @@ inline ComPtr<ID3D12Resource> RawVertexBuffer::initializeStatic(
     return ret;
 }
 
+inline void RawVertexBuffer::initializeDefault(
+    ID3D12Device         *device,
+    size_t                vertexCount,
+    size_t                vertexSize,
+    D3D12_RESOURCE_STATES initStates)
+{
+    const size_t byteSize = vertexCount * vertexSize;
+    
+    destroy();
+
+    buffer_.initializeDefault(
+        device, byteSize,
+        initStates);
+
+    vertexSize_  = vertexSize;
+    vertexCount_ = vertexCount;
+}
+
 inline void RawVertexBuffer::initializeDynamic(
     ID3D12Device  *device,
     size_t         vertexCount,
@@ -192,6 +229,16 @@ inline D3D12_VERTEX_BUFFER_VIEW RawVertexBuffer::getView() const noexcept
     return view;
 }
 
+inline RawVertexBuffer::operator Buffer&() noexcept
+{
+    return buffer_;
+}
+
+inline RawVertexBuffer::operator const Buffer&() const noexcept
+{
+    return buffer_;
+}
+
 template<typename Vertex>
 void VertexBuffer<Vertex>::swap(VertexBuffer<Vertex> &&other)
 {
@@ -219,6 +266,15 @@ ComPtr<ID3D12Resource> VertexBuffer<Vertex>::initializeStatic(
 {
     return buffer_.initializeStatic(
         device, copyCmdList, vertexCount, sizeof(Vertex), initData);
+}
+
+template<typename Vertex>
+void VertexBuffer<Vertex>::initializeDefault(
+    ID3D12Device         *device,
+    size_t                vertexCount,
+    D3D12_RESOURCE_STATES initStates)
+{
+    buffer_.initializeDefault(device, vertexCount, sizeof(Vertex), initStates);
 }
 
 template<typename Vertex>
@@ -262,6 +318,18 @@ VertexBuffer<Vertex>::operator RawVertexBuffer&() noexcept
 
 template<typename Vertex>
 VertexBuffer<Vertex>::operator const RawVertexBuffer&() const noexcept
+{
+    return buffer_;
+}
+
+template<typename Vertex>
+VertexBuffer<Vertex>::operator Buffer&() noexcept
+{
+    return buffer_;
+}
+
+template<typename Vertex>
+VertexBuffer<Vertex>::operator const Buffer&() const noexcept
 {
     return buffer_;
 }

@@ -120,7 +120,25 @@ void run()
     // cmd list
 
     PerFrameCommandList cmdList(window);
-    GraphicsCommandList uploadCmdList(window.getDevice());
+    SingleCommandList uploadCmdList(window.getDevice());
+
+    // copy queue
+
+    ComPtr<ID3D12CommandQueue> copyQueue;
+
+    D3D12_COMMAND_QUEUE_DESC copyQueueDesc;
+    copyQueueDesc.Flags    = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    copyQueueDesc.NodeMask = 0;
+    copyQueueDesc.Priority = 0;
+    copyQueueDesc.Type     = D3D12_COMMAND_LIST_TYPE_COPY;
+
+    AGZ_D3D12_CHECK_HR(
+        device->CreateCommandQueue(
+            &copyQueueDesc, IID_PPV_ARGS(copyQueue.GetAddressOf())));
+
+    // uploader
+
+    ResourceUploader uploader(device, copyQueue, window.getCommandQueue(), 1);
 
     // root signature
 
@@ -170,20 +188,18 @@ void run()
 
     auto vertexData = loadMesh("./asset/03_cube.obj");
 
-    uploadCmdList.resetCommandList();
     VertexBuffer<Vertex> vertexBuffer;
-    auto uploadBuf = vertexBuffer.initializeStatic(
-        device,
-        uploadCmdList.getCmdList(),
-        vertexData.size(),
-        vertexData.data());
-    vertexData.clear();
-    uploadCmdList->Close();
+    vertexBuffer.initializeDefault(
+        device, vertexData.size(),
+        D3D12_RESOURCE_STATE_COMMON);
 
-    window.executeOneCmdList(uploadCmdList.getCmdList());
+    uploader.uploadBufferData(
+        vertexBuffer.getResource(),
+        vertexData.data(),
+        sizeof(Vertex) *vertexData.size(),
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
-    window.waitCommandQueueIdle();
-    uploadBuf.Reset();
+    uploader.submit();
 
     // constant buffer
 
@@ -223,17 +239,28 @@ void run()
     if(!texData.is_available())
         throw std::runtime_error("failed to load texture data from file");
 
-    uploadCmdList.resetCommandList();
-    
-    Texture2D tex;
-    auto uploadTex = tex.initializeShaderResource(
-        device, DXGI_FORMAT_R8G8B8A8_UNORM,
-        texData.width(), texData.height(),
-        uploadCmdList, { texData.raw_data() });
+    ComPtr<ID3D12Resource> tex;
+    AGZ_D3D12_CHECK_HR(
+        device->CreateCommittedResource(
+            agz::get_temp_ptr(
+                CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+            D3D12_HEAP_FLAG_NONE,
+            agz::get_temp_ptr(
+                CD3DX12_RESOURCE_DESC::Tex2D(
+                    DXGI_FORMAT_R8G8B8A8_UNORM,
+                    texData.width(),
+                    texData.height(),
+                    1,
+                    1)),
+            D3D12_RESOURCE_STATE_COMMON,
+            nullptr,
+            IID_PPV_ARGS(tex.GetAddressOf())));
 
-    uploadCmdList->Close();
-    window.executeOneCmdList(uploadCmdList.getCmdList());
-    window.waitCommandQueueIdle();
+    uploader.uploadTex2DData(
+        tex, ResourceUploader::Tex2DSubInitData{ texData.raw_data() },
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    uploader.waitForIdle();
 
     // SRV heap
 
@@ -241,7 +268,17 @@ void run()
     descHeap.initialize(device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true);
 
     auto srv = descHeap.allocSingle();
-    tex.createShaderResourceView(srv);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    srvDesc.Format                        = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels           = 1;
+    srvDesc.Texture2D.MostDetailedMip     = 0;
+    srvDesc.Texture2D.PlaneSlice          = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0;
+
+    device->CreateShaderResourceView(tex.Get(), &srvDesc, srv);
 
     // camera
 

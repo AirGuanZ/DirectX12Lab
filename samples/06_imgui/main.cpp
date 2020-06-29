@@ -27,7 +27,7 @@ void run()
     ImGuiIntegration imgui(
         window, rscHeap.getRawHeap(), imguiSRV, imguiSRV);
 
-    GraphicsCommandList copyCmdList(device);
+    SingleCommandList copyCmdList(device);
     Texture2D tex;
 
     const auto texData = agz::texture::texture2d_t<agz::math::color4b>(

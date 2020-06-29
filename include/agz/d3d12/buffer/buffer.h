@@ -32,6 +32,11 @@ public:
         size_t                     initDataByteSize,
         D3D12_RESOURCE_STATES      initStates);
 
+    void initializeDefault(
+        ID3D12Device         *device,
+        size_t                byteSize,
+        D3D12_RESOURCE_STATES initStates);
+
     void initializeDynamic(
         ID3D12Device              *device,
         size_t                     byteSize,
@@ -69,7 +74,7 @@ inline Buffer &Buffer::operator=(Buffer &&other) noexcept
     return *this;
 }
 
-[[nodiscard]] inline ComPtr<ID3D12Resource> Buffer::initializeStatic(
+inline ComPtr<ID3D12Resource> Buffer::initializeStatic(
     ID3D12Device              *device,
     ID3D12GraphicsCommandList *copyCmdList,
     size_t                     byteSize,
@@ -125,6 +130,31 @@ inline Buffer &Buffer::operator=(Buffer &&other) noexcept
 
     destroyGuard.dismiss();
     return uploadBuf;
+}
+
+inline void Buffer::initializeDefault(
+    ID3D12Device         *device,
+    size_t                byteSize,
+    D3D12_RESOURCE_STATES initStates)
+{
+    destroy();
+    misc::scope_guard_t destroyGuard([&]{ destroy(); });
+
+    byteSize_ = byteSize;
+
+    const CD3DX12_HEAP_PROPERTIES vtxBufProp(D3D12_HEAP_TYPE_DEFAULT);
+    const auto vtxBufDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
+
+    AGZ_D3D12_CHECK_HR(
+        device->CreateCommittedResource(
+            &vtxBufProp,
+            D3D12_HEAP_FLAG_NONE,
+            &vtxBufDesc,
+            initStates,
+            nullptr,
+            IID_PPV_ARGS(buffer_.GetAddressOf())));
+
+    destroyGuard.dismiss();
 }
 
 inline void Buffer::initializeDynamic(

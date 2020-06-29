@@ -44,6 +44,19 @@ public:
         ID3D12Device          *device,
         ComPtr<ID3D12Resource> rsc,
         D3D12_RESOURCE_STATES  state);
+
+    void initializeDefault(
+        ID3D12Device            *device,
+        DXGI_FORMAT              format,
+        int                      width,
+        int                      height,
+        int                      arraySize,
+        int                      mipmapCount,
+        SpecialUsage             specialUsage,
+        int                      sampleCount,
+        int                      sampleQuality,
+        D3D12_RESOURCE_STATES    initStates,
+        const D3D12_CLEAR_VALUE *clearValue);
     
     ComPtr<ID3D12Resource> initializeShaderResource(
         ID3D12Device              *device,

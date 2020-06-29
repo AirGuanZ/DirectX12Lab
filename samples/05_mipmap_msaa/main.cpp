@@ -62,7 +62,7 @@ void run()
     // cmd list
 
     PerFrameCommandList frameCmdList(window);
-    GraphicsCommandList uploadCmdList(device);
+    SingleCommandList uploadCmdList(device);
     uploadCmdList.resetCommandList();
 
     // rsc desc heap
