@@ -18,7 +18,31 @@ struct ConstantBufferView
     D3D12_SHADER_VISIBILITY vis;
     BRegister reg;
 
-    D3D12_ROOT_PARAMETER toRootParameter() const;
+    D3D12_ROOT_PARAMETER toRootParameter() const noexcept;
+};
+
+struct ShaderResourceView
+{
+    ShaderResourceView(
+        D3D12_SHADER_VISIBILITY vis,
+        const TRegister        &reg) noexcept;
+
+    D3D12_SHADER_VISIBILITY vis;
+    TRegister reg;
+
+    D3D12_ROOT_PARAMETER toRootParameter() const noexcept;
+};
+
+struct UnorderedAccessView
+{
+    UnorderedAccessView(
+        D3D12_SHADER_VISIBILITY vis,
+        const URegister        &reg) noexcept;
+
+    D3D12_SHADER_VISIBILITY vis;
+    URegister reg;
+
+    D3D12_ROOT_PARAMETER toRootParameter() const noexcept;
 };
 
 struct ImmediateConstants
@@ -32,7 +56,7 @@ struct ImmediateConstants
     BRegister reg;
     UINT32 num32Bits;
 
-    D3D12_ROOT_PARAMETER toRootParameter() const;
+    D3D12_ROOT_PARAMETER toRootParameter() const noexcept;
 };
 
 /**
@@ -57,6 +81,7 @@ struct DescriptorTable
 
 /**
  * - ConstantBufferView
+ * - ShaderResourceView
  * - ImmediateConstants
  * - DescriptorTable
  * - StaticSampler
@@ -69,6 +94,8 @@ struct RootSignature
 
     using RootParameter = misc::variant_t<
         ConstantBufferView,
+        ShaderResourceView,
+        UnorderedAccessView,
         ImmediateConstants,
         DescriptorTable>;
 

@@ -372,7 +372,7 @@ void run()
     initFrameGraph();
 
     window.attach(std::make_shared<WindowPreResizeHandler>(
-        [&] { graph.restart(); }));
+        [&] { graph.reset(); }));
     window.attach(std::make_shared<WindowPostResizeHandler>(
         [&] { initFrameGraph(); }));
 

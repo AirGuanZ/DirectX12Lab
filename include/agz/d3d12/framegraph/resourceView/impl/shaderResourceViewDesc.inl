@@ -51,6 +51,14 @@ namespace detail
         g.scope = scope;
     }
 
+    template<typename S>
+    void _initBufSRV(
+        _internalSRV &g, S &s,
+        SRVScope scope) noexcept
+    {
+        g.scope = scope;
+    }
+
 } // namespace detail
 
 inline _internalSRV::_internalSRV(ResourceIndex rsc, SRVScope scope) noexcept
@@ -110,6 +118,20 @@ Tex2DMSArrSRV::Tex2DMSArrSRV(ResourceIndex rsc, const Args &... args) noexcept
     desc.ViewDimension    = D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
     desc.Texture2DMSArray = { 0, 1 };
     InvokeAll([&] { detail::_initTex2DSRV(*this, desc.Texture2DMSArray, args); }...);
+}
+
+template<typename...Args>
+BufSRV::BufSRV(
+    ResourceIndex rsc, UINT elemSize, UINT elemCnt,
+    const Args &...args) noexcept
+    : _internalSRV(rsc, DefaultSRVScope)
+{
+    desc.ViewDimension              = D3D12_SRV_DIMENSION_BUFFER;
+    desc.Buffer.FirstElement        = 0;
+    desc.Buffer.Flags               = D3D12_BUFFER_SRV_FLAG_NONE;
+    desc.Buffer.NumElements         = elemCnt;
+    desc.Buffer.StructureByteStride = elemSize;
+    InvokeAll([&] { detail::_initBufSRV(*this, desc.Buffer, args); }...);
 }
 
 AGZ_D3D12_FG_END

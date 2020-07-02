@@ -56,4 +56,16 @@ Tex2DArrUAV::Tex2DArrUAV(ResourceIndex rsc, const Args &... args) noexcept
     InvokeAll([&] { detail::_initUAV(desc, desc.Texture2DArray, args); }...);
 }
 
+template<typename ... Args>
+BufUAV::BufUAV(ResourceIndex rsc, UINT elemSize, UINT elemCnt) noexcept
+    : _internalUAV(rsc)
+{
+    desc.ViewDimension               = D3D12_UAV_DIMENSION_BUFFER;
+    desc.Buffer.CounterOffsetInBytes = 0;
+    desc.Buffer.FirstElement         = 0;
+    desc.Buffer.Flags                = D3D12_BUFFER_UAV_FLAG_NONE;
+    desc.Buffer.NumElements          = elemCnt;
+    desc.Buffer.StructureByteStride  = elemSize;
+}
+
 AGZ_D3D12_FG_END

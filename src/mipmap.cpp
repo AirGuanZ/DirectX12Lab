@@ -56,7 +56,6 @@ namespace
 
 int computeMaxMipmapChainLength(int width, int height) noexcept
 {
-    // IMPROVE: closed-form computation
     int ret = 1;
     while(width > 1 || height > 1)
     {

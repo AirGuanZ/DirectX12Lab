@@ -1,25 +1,29 @@
 #pragma once
 
+#include <d3dcompiler.h>
 #include <d3dx12.h>
 
 #include <agz/d3d12/pipeline/shader.h>
 
 AGZ_D3D12_FG_BEGIN
 
-inline PipelineShader::PipelineShader() noexcept
+template<typename Shader>
+PipelineShader<Shader>::PipelineShader() noexcept
     : byteCodeDesc{}
 {
     
 }
 
-inline PipelineShader::PipelineShader(
+template<typename Shader>
+PipelineShader<Shader>::PipelineShader(
     const D3D12_SHADER_BYTECODE &byteCodeDesc)
     : byteCodeDesc(byteCodeDesc)
 {
     
 }
 
-inline PipelineShader::PipelineShader(
+template<typename Shader>
+PipelineShader<Shader>::PipelineShader(
     ComPtr<ID3D10Blob> byteCodeBlob)
     : byteCode(std::move(byteCodeBlob)), byteCodeDesc{}
 {
@@ -27,7 +31,8 @@ inline PipelineShader::PipelineShader(
     byteCodeDesc.BytecodeLength  = byteCode->GetBufferSize();
 }
 
-inline PipelineShader::PipelineShader(
+template<typename Shader>
+PipelineShader<Shader>::PipelineShader(
     std::string_view        sourceCode,
     const char             *target,
     OptLevel                optLevel,
@@ -41,7 +46,8 @@ inline PipelineShader::PipelineShader(
     compiler.setOptLevel(optLevel).setWarnings(false);
 
     byteCode = compiler.compileShader(
-        sourceCode, target, macros, entry, sourceName, includes);
+        sourceCode, target, macros, entry, sourceName,
+        includes ? includes : D3D_COMPILE_STANDARD_FILE_INCLUDE);
 
     byteCodeDesc.pShaderBytecode = byteCode->GetBufferPointer();
     byteCodeDesc.BytecodeLength  = byteCode->GetBufferSize();
@@ -214,6 +220,46 @@ inline ComPtr<ID3D12PipelineState> GraphicsPipelineState::createPipelineState(ID
             &desc, IID_PPV_ARGS(pipelineState.GetAddressOf())));
 
     return pipelineState;
+}
+
+namespace detail
+{
+
+    inline void _initCPS(
+        ComputePipeline &p,
+        const ComputeShader &computeShader)
+    {
+        p.cs = computeShader;
+    }
+
+    inline void _initCPS(
+        ComputePipeline &p,
+        ComPtr<ID3D12RootSignature> rs)
+    {
+        p.rootSignature = rs;
+    }
+
+} // namespace detail
+
+template<typename ... Args>
+ComputePipeline::ComputePipeline(Args &&... args)
+{
+    InvokeAll([&] { detail::_initCPS(*this, std::forward<Args>(args)); }...);
+}
+
+inline ComPtr<ID3D12PipelineState> ComputePipeline::createPipelineState(
+    ID3D12Device *device) const
+{
+    D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+    desc.pRootSignature = rootSignature.Get();
+    desc.CS             = cs.byteCodeDesc;
+
+    ComPtr<ID3D12PipelineState> ret;
+    AGZ_D3D12_CHECK_HR(
+        device->CreateComputePipelineState(
+            &desc, IID_PPV_ARGS(ret.GetAddressOf())));
+
+    return ret;
 }
 
 AGZ_D3D12_FG_END

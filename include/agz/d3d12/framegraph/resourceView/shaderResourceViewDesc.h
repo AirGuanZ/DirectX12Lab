@@ -58,8 +58,6 @@ struct Tex2DArrSRV : _internalSRV
 {
     template<typename...Args>
     explicit Tex2DArrSRV(ResourceIndex rsc, const Args &...args) noexcept;
-
-    Tex2DArrSRV(const Tex2DArrSRV &) = default;
 };
 
 /**
@@ -71,22 +69,30 @@ struct Tex2DMSSRV : _internalSRV
 {
     template<typename...Args>
     explicit Tex2DMSSRV(ResourceIndex rsc, const Args &...args) noexcept;
-
-    Tex2DMSSRV(const Tex2DMSSRV &) = default;
 };
 
+/**
+ * - DXGI_FORMAT. default value is UNKNOWN (inferred from rsc)
+ * - ArraySlices. use array elems of rsc. default is [0]
+ * - SRVScope. accessible shader stages. default is 'DEFAULT' in which all
+ *   shader stages can access it
+ */
 struct Tex2DMSArrSRV : _internalSRV
 {
-    /**
-     * - DXGI_FORMAT. default value is UNKNOWN (inferred from rsc)
-     * - ArraySlices. use array elems of rsc. default is [0]
-     * - SRVScope. accessible shader stages. default is 'DEFAULT' in which all
-     *   shader stages can access it
-     */
     template<typename...Args>
     explicit Tex2DMSArrSRV(ResourceIndex rsc, const Args &...args) noexcept;
+};
 
-    Tex2DMSArrSRV(const Tex2DMSArrSRV &) = default;
+/**
+ * - SRVScope. accessible shader stages. default is 'DEFAULT' in which all
+ *   shader stages can access it
+ */
+struct BufSRV : _internalSRV
+{
+    template<typename...Args>
+    BufSRV(
+        ResourceIndex rsc, UINT elemSize, UINT elemCnt,
+        const Args &...args) noexcept;
 };
 
 AGZ_D3D12_FG_END

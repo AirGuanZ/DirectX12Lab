@@ -176,7 +176,8 @@ FrameGraphData FrameGraphCompiler::compile(
         else
         {
             ret.passNodes.emplace_back(
-                std::move(passRscs), pass.passFunc, pass.rootSignature);
+                std::move(passRscs), pass.passFunc,
+                pass.pipelineState, pass.rootSignature);
         }
     }
 
@@ -376,8 +377,16 @@ void FrameGraphCompiler::inferDescFormat(
 
     match_variant(
         rscUsage.viewDesc,
-        [&](_internalSRV &view) { fillFmt(view.desc.Format); },
-        [&](_internalUAV &view) { fillFmt(view.desc.Format); },
+        [&](_internalSRV &view)
+    {
+        if(view.desc.ViewDimension != D3D12_SRV_DIMENSION_BUFFER)
+            fillFmt(view.desc.Format);
+    },
+        [&](_internalUAV &view)
+    {
+        if(view.desc.ViewDimension != D3D12_UAV_DIMENSION_BUFFER)
+            fillFmt(view.desc.Format);
+    },
         [&](_internalRTV &view) { fillFmt(view.desc.Format); },
         [&](_internalDSV &view) { fillFmt(view.desc.Format); },
         [&](const std::monostate &) {});

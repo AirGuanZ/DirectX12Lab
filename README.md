@@ -81,3 +81,9 @@ Render a triangle mesh.
 * Use framegraph to impl a simple deferred renderer
 
 ![pic](./screenshots/08_framegraph.png)
+
+## 09.particles
+
+* Simple GPU-based particle system
+
+![pic](./screenshots/09_particles.png)

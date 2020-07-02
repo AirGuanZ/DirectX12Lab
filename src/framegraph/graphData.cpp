@@ -41,11 +41,13 @@ FrameGraphPassNode::FrameGraphPassNode(
 FrameGraphPassNode::FrameGraphPassNode(
     std::map<ResourceIndex, PassResource> rscs,
     FrameGraphPassFunc                    passFunc,
+    ComPtr<ID3D12PipelineState>           pipelineState,
     ComPtr<ID3D12RootSignature>           rootSignature) noexcept
     : isGraphics_(false),
       rscs_(std::move(rscs)),
       viewport_({}),
       passFunc_(std::move(passFunc)),
+      pipelineState_(std::move(pipelineState)),
       rootSignature_(std::move(rootSignature))
 {
     
@@ -241,11 +243,8 @@ bool FrameGraphPassNode::executeImpl(
 
     // pipeline state
 
-    if constexpr(IS_GRAPHICS)
-    {
-        if(pipelineState_)
-            cmdList->SetPipelineState(pipelineState_.Get());
-    }
+    if(pipelineState_)
+        cmdList->SetPipelineState(pipelineState_.Get());
 
     // root signature
 

@@ -352,7 +352,7 @@ inline ComputePipelineStateBuilder::ComputePipelineStateBuilder(
     ID3D12Device *device) noexcept
     : device_(device), desc_{}
 {
-    desc_.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
 }
 
 inline ComPtr<ID3D12PipelineState>

@@ -101,6 +101,7 @@ public:
     FrameGraphPassNode(
         std::map<ResourceIndex, PassResource> rscs,
         FrameGraphPassFunc                    passFunc,
+        ComPtr<ID3D12PipelineState>           pipelineState,
         ComPtr<ID3D12RootSignature>           rootSignature) noexcept;
 
     bool execute(

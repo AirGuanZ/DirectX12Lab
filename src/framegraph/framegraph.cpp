@@ -47,7 +47,7 @@ void FrameGraph::newGraph()
     compiler_ = std::make_unique<FrameGraphCompiler>();
 }
 
-void FrameGraph::restart()
+void FrameGraph::reset()
 {
     graphReleaser_.addReleasePoint(cmdQueue_);
 

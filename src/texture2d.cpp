@@ -30,6 +30,48 @@ void Texture2D::initialize(
     device_ = device;
 }
 
+void Texture2D::initialize(
+    ID3D12Device *device,
+    DXGI_FORMAT format,
+    int width, int height,
+    int depth, int mipCnt,
+    int sampleCnt, int sampleQua,
+    D3D12_RESOURCE_FLAGS flags,
+    D3D12_RESOURCE_STATES states,
+    const ClearColor &clearColor)
+{
+    D3D12_CLEAR_VALUE clearVal;
+    clearVal.Format   = format;
+    clearVal.Color[0] = clearColor.r;
+    clearVal.Color[1] = clearColor.g;
+    clearVal.Color[2] = clearColor.b;
+    clearVal.Color[3] = clearColor.a;
+
+    initialize(
+        device, format, width, height, depth, mipCnt, sampleCnt, sampleQua,
+        flags, states, &clearVal);
+}
+
+void Texture2D::initialize(
+    ID3D12Device *device,
+    DXGI_FORMAT format,
+    int width, int height,
+    int depth, int mipCnt,
+    int sampleCnt, int sampleQua,
+    D3D12_RESOURCE_FLAGS flags,
+    D3D12_RESOURCE_STATES states,
+    const ClearDepthStencil &clearDepthStencil)
+{
+    D3D12_CLEAR_VALUE clearVal;
+    clearVal.Format               = format;
+    clearVal.DepthStencil.Depth   = clearDepthStencil.depth;
+    clearVal.DepthStencil.Stencil = clearDepthStencil.stencil;
+
+    initialize(
+        device, format, width, height, depth, mipCnt, sampleCnt, sampleQua,
+        flags, states, &clearVal);
+}
+
 bool Texture2D::isAvailable() const noexcept
 {
     return rsc_ != nullptr;

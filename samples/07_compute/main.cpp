@@ -273,7 +273,7 @@ void run()
         inputImageData.width(), inputImageData.height(),
         1, 1, 1, 0,
         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     texB.initialize(
         device,
@@ -326,7 +326,7 @@ void run()
         graphicsCmdList->ResourceBarrier(
             1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
                 texA,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
         
         ID3D12DescriptorHeap *rawRscHeap[] = { rscHeap.getRawHeap() };
@@ -349,7 +349,7 @@ void run()
             1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(
                 texA,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)));
 
         graphicsCmdList->ResourceBarrier(
             1, agz::get_temp_ptr(CD3DX12_RESOURCE_BARRIER::Transition(

@@ -65,7 +65,10 @@ public:
     template<typename...Args>
     PassIndex addGraphicsPass(FrameGraphPassFunc passFunc, Args &&...args);
 
-    void restart();
+    template<typename...Args>
+    PassIndex addComputePass(FrameGraphPassFunc passFunc, Args &&...args);
+
+    void reset();
 
     void compile();
 
@@ -97,6 +100,14 @@ PassIndex FrameGraph::addGraphicsPass(
     FrameGraphPassFunc passFunc, Args &&... args)
 {
     return compiler_->addGraphicsPass(
+        std::move(passFunc), std::forward<Args>(args)...);
+}
+
+template<typename ... Args>
+PassIndex FrameGraph::addComputePass(
+    FrameGraphPassFunc passFunc, Args &&... args)
+{
+    return compiler_->addComputePass(
         std::move(passFunc), std::forward<Args>(args)...);
 }
 

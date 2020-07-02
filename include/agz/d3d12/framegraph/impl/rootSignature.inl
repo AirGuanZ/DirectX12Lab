@@ -10,6 +10,22 @@ inline ConstantBufferView::ConstantBufferView(
     
 }
 
+inline ShaderResourceView::ShaderResourceView(
+    D3D12_SHADER_VISIBILITY vis,
+    const TRegister        &reg) noexcept
+    : vis(vis), reg(reg)
+{
+    
+}
+
+inline UnorderedAccessView::UnorderedAccessView(
+    D3D12_SHADER_VISIBILITY vis,
+    const URegister        &reg) noexcept
+    : vis(vis), reg(reg)
+{
+    
+}
+
 inline ImmediateConstants::ImmediateConstants(
     D3D12_SHADER_VISIBILITY  vis,
     const BRegister         &reg,
@@ -32,6 +48,16 @@ namespace detail
     inline void _initRootSignature(RootSignature &rg, ConstantBufferView cbv)
     {
         rg.rootParameters.emplace_back(std::move(cbv));
+    }
+
+    inline void _initRootSignature(RootSignature &rg, ShaderResourceView srv)
+    {
+        rg.rootParameters.emplace_back(std::move(srv));
+    }
+
+    inline void _initRootSignature(RootSignature &rg, UnorderedAccessView srv)
+    {
+        rg.rootParameters.emplace_back(std::move(srv));
     }
 
     inline void _initRootSignature(RootSignature &rg, ImmediateConstants ics)
@@ -61,14 +87,28 @@ RootSignature::RootSignature(D3D12_ROOT_SIGNATURE_FLAGS flags, Args &&... args)
     }...);
 }
 
-inline D3D12_ROOT_PARAMETER ConstantBufferView::toRootParameter() const
+inline D3D12_ROOT_PARAMETER ConstantBufferView::toRootParameter() const noexcept
 {
     CD3DX12_ROOT_PARAMETER ret;
     ret.InitAsConstantBufferView(reg.registerNumber, reg.registerSpace, vis);
     return ret;
 }
 
-inline D3D12_ROOT_PARAMETER ImmediateConstants::toRootParameter() const
+inline D3D12_ROOT_PARAMETER ShaderResourceView::toRootParameter() const noexcept
+{
+    CD3DX12_ROOT_PARAMETER ret;
+    ret.InitAsShaderResourceView(reg.registerNumber, reg.registerSpace, vis);
+    return ret;
+}
+
+inline D3D12_ROOT_PARAMETER UnorderedAccessView::toRootParameter() const noexcept
+{
+    CD3DX12_ROOT_PARAMETER ret;
+    ret.InitAsUnorderedAccessView(reg.registerNumber, reg.registerSpace, vis);
+    return ret;
+}
+
+inline D3D12_ROOT_PARAMETER ImmediateConstants::toRootParameter() const noexcept
 {
     CD3DX12_ROOT_PARAMETER ret;
     ret.InitAsConstants(num32Bits, reg.registerNumber, reg.registerSpace, vis);
@@ -88,6 +128,14 @@ inline ComPtr<ID3D12RootSignature> RootSignature::createRootSignature(
             [&](const ConstantBufferView &cbv)
         {
             rootParamStorage.push_back(cbv.toRootParameter());
+        },
+            [&](const ShaderResourceView &srv)
+        {
+            rootParamStorage.push_back(srv.toRootParameter());
+        },
+            [&](const UnorderedAccessView &uav)
+        {
+            rootParamStorage.push_back(uav.toRootParameter());
         },
             [&](const ImmediateConstants &ics)
         {

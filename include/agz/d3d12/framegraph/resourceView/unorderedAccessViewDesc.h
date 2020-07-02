@@ -23,8 +23,6 @@ struct Tex2DUAV : _internalUAV
 {
     template<typename...Args>
     explicit Tex2DUAV(ResourceIndex rsc, const Args &...args) noexcept;
-
-    Tex2DUAV(const Tex2DUAV &) = default;
 };
 
 /**
@@ -36,8 +34,12 @@ struct Tex2DArrUAV : _internalUAV
 {
     template<typename...Args>
     explicit Tex2DArrUAV(ResourceIndex rsc, const Args &...args) noexcept;
+};
 
-    Tex2DArrUAV(const Tex2DArrUAV &) = default;
+struct BufUAV : _internalUAV
+{
+    template<typename...Args>
+    BufUAV(ResourceIndex rsc, UINT elemSize, UINT elemCnt) noexcept;
 };
 
 AGZ_D3D12_FG_END

@@ -2,10 +2,12 @@
 
 #include <d3d12.h>
 
-#include <agz/d3d12/common.h>
-#include <agz/utility/texture.h>
+#include <agz/d3d12/framegraph/framegraph.h>
 
 AGZ_D3D12_BEGIN
+
+using fg::ClearColor;
+using fg::ClearDepthStencil;
 
 class Texture2D : public misc::uncopyable_t
 {
@@ -26,6 +28,26 @@ public:
         D3D12_RESOURCE_FLAGS flags,
         D3D12_RESOURCE_STATES states,
         const D3D12_CLEAR_VALUE *clearValue = nullptr);
+
+    void initialize(
+        ID3D12Device *device,
+        DXGI_FORMAT format,
+        int width, int height,
+        int depth, int mipCnt,
+        int sampleCnt, int sampleQua,
+        D3D12_RESOURCE_FLAGS flags,
+        D3D12_RESOURCE_STATES states,
+        const ClearColor &clearColor);
+
+    void initialize(
+        ID3D12Device *device,
+        DXGI_FORMAT format,
+        int width, int height,
+        int depth, int mipCnt,
+        int sampleCnt, int sampleQua,
+        D3D12_RESOURCE_FLAGS flags,
+        D3D12_RESOURCE_STATES states,
+        const ClearDepthStencil &clearDepthStencil);
 
     bool isAvailable() const noexcept;
 
