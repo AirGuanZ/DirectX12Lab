@@ -40,7 +40,7 @@ class Window
 {
 public:
 
-    explicit Window(const WindowDesc &desc);
+    explicit Window(const WindowDesc &desc, bool maximized = false);
 
     ~Window();
 
@@ -138,7 +138,7 @@ private:
 
     struct WindowImplData;
 
-    void initWin32Window(const WindowDesc &desc);
+    void initWin32Window(const WindowDesc &desc, bool maximized);
 
     void initD3D12(const WindowDesc &desc);
 

@@ -32,33 +32,36 @@ void FrameGraphExecuter::execute(
         threadCount_,
         [&](int threadIndex)
     {
-        FrameGraphTaskScheduler::TaskRange task;
-
+        for(;;)
         {
-            std::lock_guard lk(schedulerMutex_);
-            task = scheduler.requestTask();
-        }
+            FrameGraphTaskScheduler::TaskRange task;
 
-        if(!task.begNode)
-            return;
+            {
+                std::lock_guard lk(schedulerMutex_);
+                task = scheduler.requestTask();
+            }
 
-        auto cmdList = cmdListPool_.requireGraphicsCommandList(threadIndex);
-        if(gpuRawHeap)
-            cmdList->SetDescriptorHeaps(1, &gpuRawHeap);
+            if(!task.begNode)
+                return;
 
-        for(auto n = task.begNode; n != task.endNode; ++n)
-        {
-            n->execute(
-                device_, graph.rscNodes,
-                allGPUDescs, allRTVDescs, allDSVDescs,
-                cmdList.Get());
-        }
+            auto cmdList = cmdListPool_.requireGraphicsCommandList(threadIndex);
+            if(gpuRawHeap)
+                cmdList->SetDescriptorHeaps(1, &gpuRawHeap);
 
-        cmdList->Close();
+            for(auto n = task.begNode; n != task.endNode; ++n)
+            {
+                n->execute(
+                    device_, graph.rscNodes,
+                    allGPUDescs, allRTVDescs, allDSVDescs,
+                    cmdList.Get());
+            }
 
-        {
-            std::lock_guard lk(schedulerMutex_);
-            scheduler.submitTask(task, cmdList);
+            cmdList->Close();
+
+            {
+                std::lock_guard lk(schedulerMutex_);
+                scheduler.submitTask(task, cmdList);
+            }
         }
     });
 }

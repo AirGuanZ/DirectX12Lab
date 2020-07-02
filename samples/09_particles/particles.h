@@ -8,11 +8,22 @@ class AttractorMesh
 {
 public:
 
+    struct AttractorData
+    {
+        Vec3 position;
+        float pad0 = 0;
+    };
+
     void loadPlane();
 
     void loadFromFile(const std::string &filename);
 
     void sampleSurface(size_t samplesCnt, Vec3 *output) const;
+
+    ComPtr<ID3D12Resource> generateAttractorData(
+        ID3D12Device *device,
+        ResourceUploader &uploader,
+        uint32_t attractorCount) const;
 
 private:
 
@@ -40,8 +51,7 @@ public:
         int                  frameCount,
         int                  particleCnt);
 
-    // call when gpu is idle
-    void setMesh(AttractorMesh mesh, uint32_t attractorCount);
+    void setMesh(ComPtr<ID3D12Resource> attractorData, uint32_t attractorCount);
 
     void setAttractedCount(uint32_t attractedCount);
 
@@ -69,12 +79,6 @@ private:
         float pad0 = 0;
         Vec3 velocity;
         float pad1 = 0;
-    };
-
-    struct AttractorData
-    {
-        Vec3 position;
-        float pad0 = 0;
     };
 
     struct SimulationConstants
@@ -130,8 +134,6 @@ private:
 
     ComPtr<ID3D12Resource> attractors_;
     fg::ResourceIndex attractorsRsc_;
-
-    AttractorMesh mesh_;
 
     // simulation
 

@@ -42,7 +42,7 @@ float3 HSV2RGB(float3 HSV)
 
 float4 main(PSInput input) : SV_TARGET
 {
-    float H = 0.5 * snoise(float4(0.1 * input.worldPos, 2 * ColorT)) + 0.5;
+    float H = 0.5 * snoise(float4(0.1 * input.worldPos, ColorT)) + 0.5;
     float3 c = saturate(HSV2RGB(float3(H, 0.8, 0.8)));
     return float4(pow(c, 1 / 2.2), 1);
 }

@@ -89,7 +89,7 @@ DWORD WindowDesc::getStyle() const noexcept
     return style;
 }
 
-void Window::initWin32Window(const WindowDesc &desc)
+void Window::initWin32Window(const WindowDesc &desc, bool maximized)
 {
     impl_ = std::make_unique<WindowImplData>();
 
@@ -164,7 +164,7 @@ void Window::initWin32Window(const WindowDesc &desc)
 
     // show & focus
 
-    ShowWindow(impl_->hWindow, SW_SHOW);
+    ShowWindow(impl_->hWindow, maximized ? SW_SHOWMAXIMIZED : SW_SHOW);
     UpdateWindow(impl_->hWindow);
     SetForegroundWindow(impl_->hWindow);
     SetFocus(impl_->hWindow);
@@ -300,9 +300,9 @@ void Window::initKeyboardAndMouse()
     impl_->mouse = std::make_unique<Mouse>(impl_->hWindow);
 }
 
-Window::Window(const WindowDesc &desc)
+Window::Window(const WindowDesc &desc, bool maximized)
 {
-    initWin32Window(desc);
+    initWin32Window(desc, maximized);
     initD3D12(desc);
     initKeyboardAndMouse();
 }

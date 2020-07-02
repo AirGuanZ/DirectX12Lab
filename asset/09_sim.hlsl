@@ -31,7 +31,7 @@ StructuredBuffer<Attractor> Attractors : register(t1);
 
 #define GROUP_SIZE         256
 #define PARTICLE_MAX_RANGE 5
-#define PARTICLE_MAX_VEL   2
+#define PARTICLE_MAX_VEL   3
 
 float3 getAttractorForce(float3 p2A)
 {
@@ -48,9 +48,9 @@ float3 limitVel(float3 oldVel)
 
 float3 randomForce(float3 pos)
 {
-    float x = snoise(float4(0.4 * pos + float3(100, 0, 0), 4 * BackgroundForceT));
-    float y = snoise(float4(0.4 * pos + float3(200, 0, 0), 4 * BackgroundForceT));
-    float z = snoise(float4(0.4 * pos + float3(300, 0, 0), 4 * BackgroundForceT));
+    float x = snoise(float4(2 * pos + float3(100, 0, 0), 4 * BackgroundForceT));
+    float y = snoise(float4(2 * pos + float3(200, 0, 0), 4 * BackgroundForceT));
+    float z = snoise(float4(2 * pos + float3(300, 0, 0), 4 * BackgroundForceT));
     return float3(x, y, z);
 }
 
@@ -60,12 +60,15 @@ void processAttracted(int particleIdx)
     Attractor attractor = Attractors[particleIdx % AttractorCount];
 
     float4 aPw = mul(float4(attractor.position, 1), AttractorWorld);
+    float3 aPos = aPw.xyz / aPw.w;
     
-    float3 attractorForce = getAttractorForce(
-        aPw.xyz / aPw.w - particle.position);
+    float3 attractorForce = getAttractorForce(aPos - particle.position);
+
+    if(distance(aPos, particle.position) > 0.1)
+        attractorForce += 0.05 * randomForce(particle.position);
 
     float3 newVel = limitVel(
-        particle.velocity + attractorForce + randomForce(particle.position));
+        particle.velocity + attractorForce);
     
     float3 newPos = particle.position + newVel * DeltaT;
 
@@ -80,7 +83,7 @@ void processBackgroundForced(int particleIdx)
     Particle particle = PrevParticles[particleIdx];
 
     float3 newVel = limitVel(
-        particle.velocity + 0.03f * randomForce(particle.position));
+        particle.velocity + 0.03 * randomForce(particle.position));
 
     float3 newPos = particle.position + newVel * DeltaT;
     if(dot(newPos, newPos) > PARTICLE_MAX_RANGE * PARTICLE_MAX_RANGE)

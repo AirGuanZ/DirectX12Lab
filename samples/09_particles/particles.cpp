@@ -64,6 +64,39 @@ void AttractorMesh::sampleSurface(size_t samplesCnt, Vec3 *output) const
     }
 }
 
+ComPtr<ID3D12Resource> AttractorMesh::generateAttractorData(
+    ID3D12Device *device,
+    ResourceUploader &uploader,
+    uint32_t attractorCount) const
+{
+    std::vector<Vec3> attractorPositions(attractorCount);
+    sampleSurface(attractorCount, attractorPositions.data());
+
+    std::vector<AttractorData> attractors(attractorCount);
+    for(size_t i = 0; i < attractors.size(); ++i)
+        attractors[i].position = attractorPositions[i];
+
+    const size_t bufSize = attractorCount * sizeof(AttractorData);
+
+    ComPtr<ID3D12Resource> attractorsData;
+    device->CreateCommittedResource(
+        agz::get_temp_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+        D3D12_HEAP_FLAG_NONE,
+        agz::get_temp_ptr(CD3DX12_RESOURCE_DESC::Buffer(bufSize)),
+        D3D12_RESOURCE_STATE_COMMON, nullptr,
+        IID_PPV_ARGS(attractorsData.GetAddressOf()));
+
+    // upload data
+
+    uploader.uploadBufferData(
+        attractorsData, attractors.data(), bufSize,
+        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+    uploader.waitForIdle();
+
+    return attractorsData;
+}
+
 void AttractorMesh::transformToUnitCube(Triangles &triangles)
 {
     Vec3 low((std::numeric_limits<float>::max)());
@@ -161,7 +194,7 @@ ParticleSystem::ParticleSystem(
 
         const Vec3 posOnUnitSphere = uniform_on_sphere(u1, u2).first;
 
-        p.position = 4.0f * posOnUnitSphere;
+        p.position = agz::math::lerp(3.5f, 5.0f, dis(rng)) * posOnUnitSphere;
         p.velocity = Vec3(0);
     }
 
@@ -225,43 +258,13 @@ ParticleSystem::ParticleSystem(
     rdrPixelConsts_.initializeDynamic(device_.Get(), frameCount);
 
     colorT_ = 0;
-
-    // initial mesh
-
-    AttractorMesh mesh;
-    mesh.loadFromFile("./asset/02_mesh.obj");
-    setMesh(std::move(mesh), attractorCount_);
 }
 
-void ParticleSystem::setMesh(AttractorMesh mesh, uint32_t attractorCount)
+void ParticleSystem::setMesh(
+    ComPtr<ID3D12Resource> attractorData, uint32_t attractorCount)
 {
+    attractors_.Swap(attractorData);
     attractorCount_ = attractorCount;
-    mesh_ = std::move(mesh);
-
-    std::vector<Vec3> attractorPositions(attractorCount_);
-    mesh_.sampleSurface(attractorCount_, attractorPositions.data());
-
-    std::vector<AttractorData> attractors(attractorCount_);
-    for(size_t i = 0; i < attractors.size(); ++i)
-        attractors[i].position = attractorPositions[i];
-
-    const size_t bufSize = attractorCount_ * sizeof(AttractorData);
-
-    attractors_.Reset();
-    device_->CreateCommittedResource(
-        agz::get_temp_ptr(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
-        D3D12_HEAP_FLAG_NONE,
-        agz::get_temp_ptr(CD3DX12_RESOURCE_DESC::Buffer(bufSize)),
-        D3D12_RESOURCE_STATE_COMMON, nullptr,
-        IID_PPV_ARGS(attractors_.GetAddressOf()));
-
-    // upload data
-
-    uploader_.uploadBufferData(
-        attractors_, attractors.data(), bufSize,
-        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-    uploader_.waitForIdle();
 }
 
 void ParticleSystem::setAttractedCount(uint32_t attractedCount)
@@ -361,7 +364,7 @@ void ParticleSystem::initPasses(
     },
         BufSRV{ prevData_, sizeof(ParticleData), particleCount_ },
         BufUAV{ nextData_, sizeof(ParticleData), particleCount_ },
-        BufSRV{ attractorsRsc_, sizeof(AttractorData), attractorCount_ },
+        BufSRV{ attractorsRsc_, sizeof(AttractorMesh::AttractorData), attractorCount_ },
         simPipeline_,
         simRootSignature_);
 
