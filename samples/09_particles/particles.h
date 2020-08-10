@@ -45,6 +45,20 @@ class ParticleSystem : public agz::misc::uncopyable_t
 {
 public:
 
+    struct Config
+    {
+        float maxVel                 = 4;
+        float attractorForce         = 0.2f;
+        float attractedRandomForce   = 0.05f;
+        float unattractedRandomForce = 0.03f;
+
+        float randomForceSFreq = 0.5f;
+        float randomForceTFreq = 4;
+
+        float colorSFreq = 0.1f;
+        float colorTFreq = 1;
+    };
+
     ParticleSystem(
         ComPtr<ID3D12Device> device,
         ResourceUploader    &uploader,
@@ -58,6 +72,8 @@ public:
     void setAttractorWorld(const Mat4 &world) noexcept;
 
     void setParticleSize(float size);
+
+    void setConfig(const Config &config) noexcept;
 
     // call before fg execution
     void update(
@@ -89,6 +105,16 @@ private:
         float    dT                     = 0;
 
         Mat4 attractorWorld;
+
+        float maxVel = 4;
+        float attractorForce = 0.2f;
+        float attractedRandomForce = 0.05f;
+        float unattractedRandomForce = 0.03f;
+
+        float randomForceSFreq = 0.5f;
+        float randomForceTFreq = 4;
+
+        float pad0[2] = { 0 };
     };
 
     struct RenderingGeometryConsts
@@ -101,11 +127,12 @@ private:
     struct RenderingPixelConsts
     {
         float colorT = 0;
-        float pad0[3] = { 0 };
+        float colorSFreq = 0.1f;
+        float colorTFreq = 1;
+        float pad0[1] = { 0 };
     };
 
     ComPtr<ID3D12Device> device_;
-    ResourceUploader    &uploader_;
 
     int currentFrameIndex_;
 
@@ -115,6 +142,11 @@ private:
     uint32_t attractorCount_;
     uint32_t attractedCount_;
     float particleSize_;
+
+    Config config_;
+
+    float simulationT_;
+    float colorT_;
 
     Mat4 attractorWorld_;
 
@@ -142,8 +174,6 @@ private:
 
     ConstantBuffer<SimulationConstants> simConsts_;
 
-    float simulationT_;
-
     // rendering
 
     ComPtr<ID3D12PipelineState> rdrPipeline_;
@@ -151,6 +181,4 @@ private:
 
     ConstantBuffer<RenderingGeometryConsts> rdrGeometryConsts_;
     ConstantBuffer<RenderingPixelConsts>    rdrPixelConsts_;
-
-    float colorT_;
 };

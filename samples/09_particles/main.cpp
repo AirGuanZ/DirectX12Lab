@@ -11,7 +11,7 @@ void run()
 
     WindowDesc windowDesc;
     windowDesc.title      = L"09.particles";
-    windowDesc.fullscreen = false;
+    windowDesc.fullscreen = true;
 
     Window window(windowDesc, true);
     auto device = window.getDevice();
@@ -34,17 +34,18 @@ void run()
     auto imguiSRV = gpuHeap.allocSingle();
     ImGuiIntegration imgui(window, gpuHeap.getRawHeap(), imguiSRV, imguiSRV);
 
-    ImGui::StyleColorsDark();
-
     // particle sys
 
-    constexpr int PARTICLE_CNT = 50000;
+    constexpr int PARTICLE_CNT = 100000;
     constexpr int MAX_ATTRACTOR_CNT = 40000;
 
     int attractedCount = PARTICLE_CNT / 2;
 
     ParticleSystem particleSys(
         device, uploader, window.getImageCount(), PARTICLE_CNT);
+
+    ParticleSystem::Config particleConfig;
+
     particleSys.setAttractedCount(attractedCount);
     particleSys.setParticleSize(0.003f);
 
@@ -75,7 +76,6 @@ void run()
     {
         "./asset/09_models/bunny.obj",
         "./asset/09_models/cube.obj",
-        "./asset/09_models/face.obj",
         "./asset/09_models/heart.obj",
         "./asset/09_models/plant.obj",
         "./asset/09_models/tea.obj"
@@ -95,14 +95,18 @@ void run()
         dsvHeap.allocSubHeap(20),
         gpuHeap.allocSubHeap(80),
         window.getCommandQueue(),
-        1, window.getImageCount());
+        2, window.getImageCount());
 
     window.attach(std::make_shared<WindowPreResizeHandler>(
         [&] { graph.reset(); }));
 
     float camRotRadX = 0;
     float camRotRadY = 0;
-    int frameCnter = 0;
+
+    int modelSwitchCnter    = 0;
+    int modelSwitchInterval = 300;
+
+    bool showWindow = true;
 
     while(!window.getCloseFlag())
     {
@@ -114,9 +118,9 @@ void run()
 
         imgui.newFrame();
 
-        if(autoSwitchMesh && ++frameCnter > 300)
+        if(autoSwitchMesh && ++modelSwitchCnter > modelSwitchInterval)
         {
-            frameCnter = 0;
+            modelSwitchCnter = 0;
             curMeshIdx = (curMeshIdx + 1) % static_cast<int>(meshes.size());
 
             particleSys.setMesh(
@@ -124,36 +128,92 @@ void run()
                 meshes[curMeshIdx].attractorCnt);
         }
 
-        if(ImGui::Begin("09.particles", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        if(window.getKeyboard()->isDown(KEY_F1))
+            showWindow = !showWindow;
+
+        if(showWindow)
         {
-            if(ImGui::SliderInt(
-                "Attractor Count", &meshes[curMeshIdx].attractorCnt,
-                1, MAX_ATTRACTOR_CNT))
+            if(ImGui::Begin(
+                "09.particles", &showWindow, ImGuiWindowFlags_AlwaysAutoResize))
             {
-                particleSys.setMesh(
-                    meshes[curMeshIdx].attractors,
-                    meshes[curMeshIdx].attractorCnt);
-            }
+                ImGui::Text("press f1 to show/hide the window");
 
-            if(ImGui::SliderInt(
-                "Attracted Count", &attractedCount, 1, PARTICLE_CNT))
-            {
-                particleSys.setAttractedCount(attractedCount);
-            }
+                if(ImGui::SliderInt(
+                    "Attractor Count", &meshes[curMeshIdx].attractorCnt,
+                    1, MAX_ATTRACTOR_CNT))
+                {
+                    particleSys.setMesh(
+                        meshes[curMeshIdx].attractors,
+                        meshes[curMeshIdx].attractorCnt);
+                }
 
-            if(ImGui::Combo(
-                "Model", &curMeshIdx,
-                meshNameList, static_cast<int>(agz::array_size(meshNameList))))
-            {
-                frameCnter = 0;
-                particleSys.setMesh(
-                    meshes[curMeshIdx].attractors,
-                    meshes[curMeshIdx].attractorCnt);
-            }
+                if(ImGui::SliderInt(
+                    "Attracted Count", &attractedCount, 1, PARTICLE_CNT))
+                {
+                    particleSys.setAttractedCount(attractedCount);
+                }
 
-            ImGui::Checkbox("Auto Switch Mesh", &autoSwitchMesh);
+                if(ImGui::Combo(
+                    "Model", &curMeshIdx,
+                    meshNameList,
+                    static_cast<int>(agz::array_size(meshNameList))))
+                {
+                    modelSwitchCnter = 0;
+                    particleSys.setMesh(
+                        meshes[curMeshIdx].attractors,
+                        meshes[curMeshIdx].attractorCnt);
+                }
+
+                ImGui::Checkbox("Auto Switch Mesh", &autoSwitchMesh);
+
+                ImGui::SliderInt(
+                    "Auto Switch Interval", &modelSwitchInterval,
+                    1, 1000);
+
+                if(ImGui::SliderFloat(
+                    "Max Velocity", &particleConfig.maxVel,
+                    0.01f, 20.0f))
+                {
+                    particleSys.setConfig(particleConfig);
+                }
+
+                if(ImGui::SliderFloat(
+                    "Attracting Force", &particleConfig.attractorForce,
+                    0, 10))
+                {
+                    particleSys.setConfig(particleConfig);
+                }
+
+                if(ImGui::SliderFloat(
+                    "Random Force S Freq", &particleConfig.randomForceSFreq,
+                    0.1f, 10))
+                {
+                    particleSys.setConfig(particleConfig);
+                }
+
+                if(ImGui::SliderFloat(
+                    "Random Force T Freq", &particleConfig.randomForceTFreq,
+                    0.1f, 10))
+                {
+                    particleSys.setConfig(particleConfig);
+                }
+
+                if(ImGui::SliderFloat(
+                    "Color S Freq", &particleConfig.colorSFreq,
+                    0.01f, 1))
+                {
+                    particleSys.setConfig(particleConfig);
+                }
+
+                if(ImGui::SliderFloat(
+                    "Color T Freq", &particleConfig.colorTFreq,
+                    0.1f, 5))
+                {
+                    particleSys.setConfig(particleConfig);
+                }
+            }
+            ImGui::End();
         }
-        ImGui::End();
 
         frameFence.startFrame(window.getCurrentImageIndex());
 
@@ -195,6 +255,8 @@ void run()
                 -agz::math::PI_f / 2 + 0.001f,
                 agz::math::PI_f / 2 - 0.001f);
         }
+
+        camRotRadX += 0.002f;
 
         const Vec3 eye = 4.0f * Vec3(
             std::cos(camRotRadY) * std::cos(camRotRadX),

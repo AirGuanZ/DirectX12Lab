@@ -8,6 +8,14 @@ cbuffer SimulationConstants
     float DeltaT;
 
     float4x4 AttractorWorld;
+
+    float MaxVel;
+    float AttractorForce;
+    float AttractedRandomForce;
+    float UnattractedRandomForce;
+
+    float RandomForceSFreq;
+    float RandomForceTFreq;
 };
 
 struct Particle
@@ -30,27 +38,32 @@ RWStructuredBuffer<Particle> NextParticles : register(u0);
 StructuredBuffer<Attractor> Attractors : register(t1);
 
 #define GROUP_SIZE         256
-#define PARTICLE_MAX_RANGE 5
-#define PARTICLE_MAX_VEL   3
+#define PARTICLE_MAX_RANGE 4
 
 float3 getAttractorForce(float3 p2A)
 {
     float len = length(p2A);
-    return 0.2f * p2A / pow(max(len, 0.1f), 2);
+    return AttractorForce * p2A;
 }
 
 float3 limitVel(float3 oldVel)
 {
     float len = length(oldVel);
-    float fac = len > PARTICLE_MAX_VEL ? PARTICLE_MAX_VEL / len : 1;
+    float fac = len > MaxVel ? MaxVel / len : 1;
     return fac * oldVel;
 }
 
 float3 randomForce(float3 pos)
 {
-    float x = snoise(float4(2 * pos + float3(100, 0, 0), 4 * BackgroundForceT));
-    float y = snoise(float4(2 * pos + float3(200, 0, 0), 4 * BackgroundForceT));
-    float z = snoise(float4(2 * pos + float3(300, 0, 0), 4 * BackgroundForceT));
+    float x = snoise(float4(
+        RandomForceSFreq * pos + float3(100, 0, 0),
+        RandomForceTFreq * BackgroundForceT));
+    float y = snoise(float4(
+        RandomForceSFreq * pos + float3(200, 0, 0),
+        RandomForceTFreq * BackgroundForceT));
+    float z = snoise(float4(
+        RandomForceSFreq * pos + float3(300, 0, 0),
+        RandomForceTFreq * BackgroundForceT));
     return float3(x, y, z);
 }
 
@@ -62,10 +75,15 @@ void processAttracted(int particleIdx)
     float4 aPw = mul(float4(attractor.position, 1), AttractorWorld);
     float3 aPos = aPw.xyz / aPw.w;
     
-    float3 attractorForce = getAttractorForce(aPos - particle.position);
+    float3 p2A = aPos - particle.position;
+    float3 attractorForce = float3(0, 0, 0);
 
-    if(distance(aPos, particle.position) > 0.1)
-        attractorForce += 0.05 * randomForce(particle.position);
+    float dis = length(p2A);
+    if(dis > 0.1)
+        attractorForce = getAttractorForce(p2A) +
+                         AttractedRandomForce * randomForce(particle.position);
+    else
+        particle.velocity = float3(0, 0, 0);
 
     float3 newVel = limitVel(
         particle.velocity + attractorForce);
@@ -83,7 +101,7 @@ void processBackgroundForced(int particleIdx)
     Particle particle = PrevParticles[particleIdx];
 
     float3 newVel = limitVel(
-        particle.velocity + 0.03 * randomForce(particle.position));
+        particle.velocity + UnattractedRandomForce * randomForce(particle.position));
 
     float3 newPos = particle.position + newVel * DeltaT;
     if(dot(newPos, newPos) > PARTICLE_MAX_RANGE * PARTICLE_MAX_RANGE)

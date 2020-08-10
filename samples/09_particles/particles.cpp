@@ -149,7 +149,6 @@ ParticleSystem::ParticleSystem(
     int                  frameCount,
     int                  particleCnt)
     : device_(std::move(device)),
-      uploader_(uploader),
       framegraph_(nullptr)
 {
     currentFrameIndex_ = 0;
@@ -158,6 +157,8 @@ ParticleSystem::ParticleSystem(
     attractedCount_ = (std::max<uint32_t>)(particleCnt * 3 / 4, 1000);
     attractorCount_ = (std::max<uint32_t>)(attractedCount_ / 2, 1000);
     particleSize_   = 0.01f;
+
+    simulationT_ = colorT_ = 0;
 
     // create particle buffer
 
@@ -282,6 +283,11 @@ void ParticleSystem::setParticleSize(float size)
     particleSize_ = size;
 }
 
+void ParticleSystem::setConfig(const Config &config) noexcept
+{
+    config_ = config;
+}
+
 void ParticleSystem::update(
     int frameIndex, float deltaT,
     const Mat4 &viewProj, const Vec3 &eye)
@@ -297,6 +303,12 @@ void ParticleSystem::update(
     simData.bgForceFieldT          = simulationT_;
     simData.dT                     = deltaT;
     simData.attractorWorld         = attractorWorld_;
+    simData.maxVel                 = config_.maxVel;
+    simData.attractorForce         = config_.attractorForce;
+    simData.attractedRandomForce   = config_.attractedRandomForce;
+    simData.unattractedRandomForce = config_.unattractedRandomForce;
+    simData.randomForceSFreq       = config_.randomForceSFreq;
+    simData.randomForceTFreq       = config_.randomForceTFreq;
 
     simConsts_.updateContentData(frameIndex, simData);
 
@@ -308,7 +320,9 @@ void ParticleSystem::update(
     rdrGeometryConsts_.updateContentData(frameIndex, geoData);
 
     RenderingPixelConsts pxlData;
-    pxlData.colorT = colorT_;
+    pxlData.colorT     = colorT_;
+    pxlData.colorSFreq = config_.colorSFreq;
+    pxlData.colorTFreq = config_.colorTFreq;
 
     rdrPixelConsts_.updateContentData(frameIndex, pxlData);
 
