@@ -45,6 +45,8 @@ void run()
         device, uploader, window.getImageCount(), PARTICLE_CNT);
 
     ParticleSystem::Config particleConfig;
+    //particleConfig.attractorForce = 2;
+    //particleConfig.maxVel         = 3;
 
     particleSys.setAttractedCount(attractedCount);
     particleSys.setParticleSize(0.003f);

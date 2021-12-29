@@ -79,7 +79,7 @@ void processAttracted(int particleIdx)
     float3 attractorForce = float3(0, 0, 0);
 
     float dis = length(p2A);
-    if(dis > 0.1)
+    if(dis > 0.04)
         attractorForce = getAttractorForce(p2A) +
                          AttractedRandomForce * randomForce(particle.position);
     else
